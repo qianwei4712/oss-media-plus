@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { CloudUpload, FileUp, Trash2, X } from 'lucide-react';
-import { uploadFile, normalizeDir, normalizeRoot } from '../oss';
+import { uploadFile, normalizeDir, normalizeRoot, detectMediaKindFromFile } from '../oss';
 import { useAppStore } from '../store';
 import type { UploadTask } from '../types';
 
@@ -67,10 +67,15 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
       addUploads(tasks);
 
       tasks.forEach((task) => {
+        const kind = detectMediaKindFromFile(task.file, task.objectKey);
+        const tags = {
+          'omp-media': kind,
+          'omp-archive': kind === 'audio' || kind === 'video' ? 'deep' : 'none',
+        };
         updateUpload(task.id, { status: 'uploading', progress: 0 });
         uploadFile(config, task.file, task.objectKey, (percent) => {
           updateUpload(task.id, { progress: percent });
-        })
+        }, tags)
           .then(() => {
             updateUpload(task.id, { status: 'done', progress: 100 });
           })

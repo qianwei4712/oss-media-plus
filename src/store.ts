@@ -15,6 +15,7 @@ interface AppState {
   setFolders: (folders: FolderItem[]) => void;
   setItems: (items: MediaItem[]) => void;
   setCurrent: (item: MediaItem | null) => void;
+  patchItem: (path: string, patch: Partial<MediaItem>) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string) => void;
   addUploads: (tasks: UploadTask[]) => void;
@@ -54,6 +55,11 @@ export const useAppStore = create<AppState>((set) => ({
   setFolders: (folders) => set({ folders }),
   setItems: (items) => set({ items }),
   setCurrent: (item) => set({ current: item }),
+  patchItem: (path, patch) =>
+    set((state) => ({
+      items: state.items.map((item) => (item.path === path ? { ...item, ...patch } : item)),
+      current: state.current?.path === path ? { ...state.current, ...patch } : state.current,
+    })),
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
   addUploads: (tasks) => set((state) => ({ uploads: [...state.uploads, ...tasks] })),

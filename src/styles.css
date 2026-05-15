@@ -529,6 +529,32 @@ input:focus {
   margin-bottom: 18px;
 }
 
+.restore-card {
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  display: grid;
+  gap: 12px;
+}
+
+.restore-card strong {
+  font-size: 14px;
+}
+
+.restore-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.restore-hint {
+  color: #97a3c1;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 .image-preview,
 .video-shell,
 .audio-shell {

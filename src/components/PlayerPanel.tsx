@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRightLeft, ChevronRight, Folder, Pause, Play, Volume2, X } from 'lucide-react';
-import { listDirectory, moveObject, normalizeDir, normalizeRoot } from '../oss';
+import { listDirectory, moveObject, normalizeDir, normalizeRoot, restoreObject, signObjectUrl } from '../oss';
 import { useAppStore } from '../store';
 import type { FolderItem, MediaItem } from '../types';
 
@@ -25,6 +25,8 @@ export function PlayerPanel({ item, onMoved }: PlayerPanelProps) {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
+  const [restoring, setRestoring] = useState(false);
+  const [restoreHint, setRestoreHint] = useState('');
   const [moveOpen, setMoveOpen] = useState(false);
   const [moving, setMoving] = useState(false);
   const [targetDir, setTargetDir] = useState('');
@@ -34,7 +36,11 @@ export function PlayerPanel({ item, onMoved }: PlayerPanelProps) {
   const config = useAppStore((state) => state.config);
   const currentDir = useAppStore((state) => state.currentDir);
   const setCurrent = useAppStore((state) => state.setCurrent);
+  const patchItem = useAppStore((state) => state.patchItem);
   const setError = useAppStore((state) => state.setError);
+  const needsRestore = Boolean(
+    item?.storageClass && ['Archive', 'ColdArchive', 'DeepColdArchive'].includes(item.storageClass),
+  );
 
   const pickerCrumbs = useMemo(() => {
     const parts = pickerDir.split('/').filter(Boolean);
@@ -67,6 +73,8 @@ export function PlayerPanel({ item, onMoved }: PlayerPanelProps) {
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
+    setRestoring(false);
+    setRestoreHint('');
     setMoveOpen(false);
     setTargetDir('');
     setPickerDir('');
@@ -124,6 +132,47 @@ export function PlayerPanel({ item, onMoved }: PlayerPanelProps) {
     const time = (next / 100) * duration;
     element.currentTime = time;
     setCurrentTime(time);
+  };
+
+  const refreshSignedUrl = () => {
+    if (!config || !item) return;
+    const url = signObjectUrl(config, item.path);
+    patchItem(item.path, { url });
+    setError('');
+  };
+
+  const submitRestore = async () => {
+    if (!config) {
+      setError('请先配置 OSS 连接。');
+      return;
+    }
+    if (!item) return;
+    if (!needsRestore) return;
+
+    setRestoring(true);
+    setRestoreHint('');
+    setError('');
+    try {
+      const result = await restoreObject(config, item.path, item.storageClass);
+      const status = (result as any)?.res?.status;
+      if (status === 200) {
+        setRestoreHint('对象已处于可读状态，可直接重试预览或播放。');
+      } else if (status === 202) {
+        setRestoreHint('已发起解冻，请稍后重试预览或播放。');
+      } else {
+        setRestoreHint('已发起解冻，请稍后重试预览或播放。');
+      }
+    } catch (error) {
+      const status = (error as any)?.status;
+      if (status === 409) {
+        setRestoreHint('对象正在解冻中，请稍后重试预览或播放。');
+      } else {
+        const message = error instanceof Error ? error.message : '未知错误';
+        setError(`解冻失败：${message}`);
+      }
+    } finally {
+      setRestoring(false);
+    }
   };
 
   const openMove = async () => {
@@ -199,9 +248,27 @@ export function PlayerPanel({ item, onMoved }: PlayerPanelProps) {
         <strong>{item.name}</strong>
         <span>{item.path}</span>
       </div>
+      {needsRestore ? (
+        <div className="restore-card">
+          <strong>对象存储类型为 {item.storageClass}，需要解冻后才能访问</strong>
+          <div className="restore-actions">
+            <button type="button" className="button primary" onClick={() => void submitRestore()} disabled={restoring}>
+              {restoring ? '解冻中...' : '发起解冻'}
+            </button>
+            <button type="button" className="button secondary" onClick={refreshSignedUrl} disabled={restoring}>
+              刷新链接
+            </button>
+          </div>
+          {restoreHint ? <div className="restore-hint">{restoreHint}</div> : null}
+        </div>
+      ) : null}
       {item.kind === 'image' ? (
         <div className="image-preview">
-          <img src={item.url} alt={item.name} />
+          <img
+            src={item.url}
+            alt={item.name}
+            onError={() => setError(needsRestore ? '图片加载失败：对象可能仍未解冻。' : '图片加载失败。')}
+          />
         </div>
       ) : null}
       <div className="player-actions">
@@ -275,13 +342,24 @@ export function PlayerPanel({ item, onMoved }: PlayerPanelProps) {
       ) : null}
       {item.kind === 'audio' ? (
         <div className="audio-shell">
-          <audio ref={mediaRef} src={item.url} preload="metadata" />
+          <audio
+            ref={mediaRef}
+            src={item.url}
+            preload="metadata"
+            onError={() => setError(needsRestore ? '音频加载失败：对象可能仍未解冻。' : '音频加载失败。')}
+          />
           <div className="audio-art">AUDIO</div>
         </div>
       ) : null}
       {item.kind === 'video' ? (
         <div className="video-shell">
-          <video ref={mediaRef} src={item.url} preload="metadata" playsInline />
+          <video
+            ref={mediaRef}
+            src={item.url}
+            preload="metadata"
+            playsInline
+            onError={() => setError(needsRestore ? '视频加载失败：对象可能仍未解冻。' : '视频加载失败。')}
+          />
         </div>
       ) : null}
       {item.kind !== 'image' ? (

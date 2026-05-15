@@ -4,6 +4,7 @@ import type { FolderItem, MediaItem, MediaKind, OSSConfig } from './types';
 const imageExt = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'avif'];
 const audioExt = ['mp3', 'wav', 'm4a', 'aac', 'ogg', 'flac'];
 const videoExt = ['mp4', 'webm', 'mov', 'm3u8', 'mkv'];
+const defaultSignatureExpires = 7 * 24 * 60 * 60;
 
 export const createClient = (config: OSSConfig) =>
   new OSS({
@@ -22,6 +23,20 @@ export const detectMediaKind = (name: string): MediaKind => {
   return 'other';
 };
 
+export const detectMediaKindFromFile = (file: File, name: string): MediaKind => {
+  const mime = file.type.toLowerCase();
+  if (mime.startsWith('image/')) return 'image';
+  if (mime.startsWith('audio/')) return 'audio';
+  if (mime.startsWith('video/')) return 'video';
+  return detectMediaKind(name);
+};
+
+const encodeTagging = (tags: Record<string, string>) =>
+  Object.entries(tags)
+    .filter(([key, value]) => Boolean(key) && value !== undefined && value !== null && value !== '')
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+    .join('&');
+
 export const normalizeRoot = (rootPath?: string) => {
   if (!rootPath) return '';
   return rootPath.endsWith('/') ? rootPath : `${rootPath}/`;
@@ -39,10 +54,13 @@ export const uploadFile = async (
   file: File,
   objectKey: string,
   onProgress?: (percent: number) => void,
+  tags?: Record<string, string>,
 ) => {
   const client = createClient(config);
+  const tagging = tags ? encodeTagging(tags) : '';
   const result = await client.put(objectKey, file, {
     mime: file.type,
+    headers: tagging ? { 'x-oss-tagging': tagging } : undefined,
     progress: onProgress
       ? (percent: number) => {
           onProgress(Math.round(percent * 100));
@@ -70,23 +88,17 @@ export const listMediaObjects = async (config: OSSConfig) => {
 
     const objects = result.objects ?? [];
     objects.forEach((object) => {
-      if (!object.name) return;
-      if (object.name.endsWith('/')) {
-        if (object.name !== prefix) {
-          const relative = normalizeDir(removeRootPrefix(rootPrefix, object.name));
-          if (relative) folderSet.add(relative);
-        }
-        return;
-      }
+      if (!object.name || object.name.endsWith('/')) return;
       const kind = detectMediaKind(object.name);
       if (kind === 'other') return;
       items.push({
         name: object.name.split('/').pop() ?? object.name,
         path: object.name,
-        url: client.signatureUrl(object.name, { expires: 3600 }),
+        url: client.signatureUrl(object.name, { expires: defaultSignatureExpires }),
         size: object.size ?? 0,
         lastModified: object.lastModified ?? '',
         kind,
+        storageClass: (object as any).storageClass,
       });
     });
 
@@ -135,10 +147,11 @@ export const listDirectory = async (config: OSSConfig, dir?: string) => {
       items.push({
         name: object.name.split('/').pop() ?? object.name,
         path: object.name,
-        url: client.signatureUrl(object.name, { expires: 3600 }),
+        url: client.signatureUrl(object.name, { expires: defaultSignatureExpires }),
         size: object.size ?? 0,
         lastModified: object.lastModified ?? '',
         kind,
+        storageClass: (object as any).storageClass,
       });
     });
 
@@ -175,4 +188,26 @@ export const moveObject = async (config: OSSConfig, fromKey: string, toKey: stri
   const client = createClient(config);
   await client.copy(toKey, fromKey);
   await client.delete(fromKey);
+};
+
+export const restoreObject = async (
+  config: OSSConfig,
+  objectKey: string,
+  storageClass?: string,
+  days = 1,
+  jobParameters: 'Standard' | 'Expedited' | 'Bulk' = 'Standard',
+) => {
+  const client = createClient(config) as any;
+  const type = storageClass === 'ColdArchive' || storageClass === 'DeepColdArchive' ? storageClass : undefined;
+  const options: any = { Days: days };
+  if (type) {
+    options.type = type;
+    options.JobParameters = jobParameters;
+  }
+  return client.restore(objectKey, options);
+};
+
+export const signObjectUrl = (config: OSSConfig, objectKey: string, expires = defaultSignatureExpires) => {
+  const client = createClient(config);
+  return client.signatureUrl(objectKey, { expires });
 };

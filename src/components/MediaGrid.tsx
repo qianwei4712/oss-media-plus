@@ -115,6 +115,7 @@ export function MediaGrid({
                 <span>{item.path}</span>
                 <small>
                   {item.kind.toUpperCase()} · {formatSize(item.size)}
+                  {item.storageClass && item.storageClass !== 'Standard' ? ` · ${item.storageClass}` : ''}
                 </small>
               </div>
             </button>

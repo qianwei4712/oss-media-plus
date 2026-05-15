@@ -16,6 +16,7 @@ export interface MediaItem {
   size: number;
   lastModified: string;
   kind: MediaKind;
+  storageClass?: string;
 }
 
 export interface FolderItem {
