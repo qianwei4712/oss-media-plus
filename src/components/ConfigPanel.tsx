@@ -10,6 +10,7 @@ const defaultConfig: OSSConfig = {
   accessKeyId: '',
   accessKeySecret: '',
   rootPath: '',
+  recoveryPath: 'recovery/',
   secure: true,
 };
 
@@ -21,7 +22,7 @@ export function ConfigPanel({ onConnected }: ConfigPanelProps) {
   const savedConfig = useAppStore((state) => state.config);
   const setConfig = useAppStore((state) => state.setConfig);
   const setError = useAppStore((state) => state.setError);
-  const [form, setForm] = useState<OSSConfig>(savedConfig ?? defaultConfig);
+  const [form, setForm] = useState<OSSConfig>({ ...defaultConfig, ...savedConfig });
   const [testing, setTesting] = useState(false);
 
   const isReady = useMemo(
@@ -115,6 +116,14 @@ export function ConfigPanel({ onConnected }: ConfigPanelProps) {
             placeholder="media/"
           />
         </label>
+        <label className="full-span">
+          回收站基础路径
+          <input
+            value={form.recoveryPath ?? ''}
+            onChange={(event) => updateField('recoveryPath', event.target.value)}
+            placeholder="recovery/"
+          />
+        </label>
       </div>
       <div className="button-row">
         <button type="button" className="button secondary" onClick={saveConfig}>
@@ -128,7 +137,7 @@ export function ConfigPanel({ onConnected }: ConfigPanelProps) {
       </div>
       <div className="hint-card">
         <KeyRound size={16} />
-        <span>需要开启 CORS，并允许 `GET/HEAD`，暴露 `ETag` 等常见响应头。</span>
+        <span>需要开启 CORS，并允许 `GET/HEAD`，暴露 `ETag` 等常见响应头。回收站路径按 Bucket 根目录解析。</span>
       </div>
     </section>
   );

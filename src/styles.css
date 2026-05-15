@@ -309,6 +309,12 @@ input:focus {
   color: #ffffff;
 }
 
+.button.danger {
+  background: rgba(220, 38, 38, 0.18);
+  color: #fecaca;
+  border: 1px solid rgba(248, 113, 113, 0.3);
+}
+
 .button.secondary,
 .icon-button,
 .tab {

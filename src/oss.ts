@@ -1,10 +1,11 @@
 import OSS from 'ali-oss';
-import type { FolderItem, MediaItem, MediaKind, OSSConfig } from './types';
+import type { FolderItem, MediaItem, MediaKind, OSSConfig, RecoveryItem } from './types';
 
 const imageExt = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'avif'];
 const audioExt = ['mp3', 'wav', 'm4a', 'aac', 'ogg', 'flac'];
 const videoExt = ['mp4', 'webm', 'mov', 'm3u8', 'mkv'];
 const defaultSignatureExpires = 7 * 24 * 60 * 60;
+const defaultRecoveryDir = 'recovery';
 
 export const createClient = (config: OSSConfig) =>
   new OSS({
@@ -49,6 +50,46 @@ export const normalizeDir = (dir?: string) => {
   return cleaned.endsWith('/') ? cleaned : `${cleaned}/`;
 };
 
+export const normalizeRecoveryDir = (recoveryPath?: string) => normalizeDir(recoveryPath || defaultRecoveryDir);
+
+const getRecoveryPrefix = (config: OSSConfig) => normalizeRecoveryDir(config.recoveryPath);
+
+const buildRecoveryObjectKey = (config: OSSConfig, objectKey: string) => {
+  const recoveryPrefix = getRecoveryPrefix(config);
+  return `${recoveryPrefix}${Date.now()}__${encodeURIComponent(objectKey)}`;
+};
+
+const parseRecoveryObjectKey = (config: OSSConfig, objectKey: string) => {
+  const recoveryPrefix = getRecoveryPrefix(config);
+  if (!objectKey.startsWith(recoveryPrefix)) {
+    return null;
+  }
+
+  const payload = objectKey.slice(recoveryPrefix.length);
+  const separatorIndex = payload.indexOf('__');
+  if (separatorIndex === -1) {
+    return null;
+  }
+
+  const deletedAtRaw = payload.slice(0, separatorIndex);
+  const originalPathRaw = payload.slice(separatorIndex + 2);
+  if (!originalPathRaw) {
+    return null;
+  }
+
+  const deletedAtMs = Number(deletedAtRaw);
+  const deletedAt = Number.isFinite(deletedAtMs) ? new Date(deletedAtMs).toISOString() : '';
+
+  try {
+    return {
+      deletedAt,
+      originalPath: decodeURIComponent(originalPathRaw),
+    };
+  } catch {
+    return null;
+  }
+};
+
 export const uploadFile = async (
   config: OSSConfig,
   file: File,
@@ -73,6 +114,7 @@ export const uploadFile = async (
 export const listMediaObjects = async (config: OSSConfig) => {
   const client = createClient(config);
   const prefix = normalizeRoot(config.rootPath);
+  const recoveryPrefix = getRecoveryPrefix(config);
   const items: MediaItem[] = [];
   let nextMarker: string | undefined;
 
@@ -89,6 +131,7 @@ export const listMediaObjects = async (config: OSSConfig) => {
     const objects = result.objects ?? [];
     objects.forEach((object) => {
       if (!object.name || object.name.endsWith('/')) return;
+      if (object.name.startsWith(recoveryPrefix)) return;
       const kind = detectMediaKind(object.name);
       if (kind === 'other') return;
       items.push({
@@ -116,6 +159,7 @@ const removeRootPrefix = (rootPrefix: string, value: string) => {
 export const listDirectory = async (config: OSSConfig, dir?: string) => {
   const client = createClient(config);
   const rootPrefix = normalizeRoot(config.rootPath);
+  const recoveryPrefix = getRecoveryPrefix(config);
   const prefix = `${rootPrefix}${normalizeDir(dir)}`;
 
   const items: MediaItem[] = [];
@@ -135,6 +179,7 @@ export const listDirectory = async (config: OSSConfig, dir?: string) => {
 
     const prefixes = result.prefixes ?? [];
     prefixes.forEach((raw) => {
+      if (raw === recoveryPrefix) return;
       const relative = normalizeDir(removeRootPrefix(rootPrefix, raw));
       if (relative) folderSet.add(relative);
     });
@@ -142,6 +187,7 @@ export const listDirectory = async (config: OSSConfig, dir?: string) => {
     const objects = result.objects ?? [];
     objects.forEach((object) => {
       if (!object.name || object.name.endsWith('/')) return;
+      if (object.name.startsWith(recoveryPrefix)) return;
       const kind = detectMediaKind(object.name);
       if (kind === 'other') return;
       items.push({
@@ -188,6 +234,86 @@ export const moveObject = async (config: OSSConfig, fromKey: string, toKey: stri
   const client = createClient(config);
   await client.copy(toKey, fromKey);
   await client.delete(fromKey);
+};
+
+const objectExists = async (config: OSSConfig, objectKey: string) => {
+  const client = createClient(config);
+  try {
+    await client.head(objectKey);
+    return true;
+  } catch (error) {
+    if ((error as any)?.status === 404) {
+      return false;
+    }
+    throw error;
+  }
+};
+
+export const moveObjectToRecovery = async (config: OSSConfig, objectKey: string) => {
+  const recoveryObjectKey = buildRecoveryObjectKey(config, objectKey);
+  await moveObject(config, objectKey, recoveryObjectKey);
+  return recoveryObjectKey;
+};
+
+export const listRecoveryItems = async (config: OSSConfig) => {
+  const client = createClient(config);
+  const recoveryPrefix = getRecoveryPrefix(config);
+  const items: RecoveryItem[] = [];
+  let nextMarker: string | undefined;
+
+  do {
+    const result = await client.list(
+      {
+        prefix: recoveryPrefix,
+        marker: nextMarker,
+        'max-keys': 100,
+      },
+      {},
+    );
+
+    const objects = result.objects ?? [];
+    objects.forEach((object) => {
+      if (!object.name || object.name.endsWith('/')) return;
+      const parsed = parseRecoveryObjectKey(config, object.name);
+      if (!parsed) return;
+      const kind = detectMediaKind(parsed.originalPath);
+      if (kind === 'other') return;
+      items.push({
+        name: parsed.originalPath.split('/').pop() ?? parsed.originalPath,
+        path: object.name,
+        recoveryObjectKey: object.name,
+        originalPath: parsed.originalPath,
+        deletedAt: parsed.deletedAt || object.lastModified || '',
+        url: client.signatureUrl(object.name, { expires: defaultSignatureExpires }),
+        size: object.size ?? 0,
+        lastModified: object.lastModified ?? '',
+        kind,
+        storageClass: (object as any).storageClass,
+      });
+    });
+
+    nextMarker = result.isTruncated ? result.nextMarker : undefined;
+  } while (nextMarker);
+
+  return items.sort((a, b) => b.deletedAt.localeCompare(a.deletedAt));
+};
+
+export const restoreRecoveryObject = async (config: OSSConfig, recoveryObjectKey: string) => {
+  const parsed = parseRecoveryObjectKey(config, recoveryObjectKey);
+  if (!parsed) {
+    throw new Error('无法解析回收站对象的原始路径');
+  }
+  if (await objectExists(config, parsed.originalPath)) {
+    throw new Error('原路径已存在同名对象，已阻止恢复覆盖');
+  }
+
+  await moveObject(config, recoveryObjectKey, parsed.originalPath);
+  return parsed.originalPath;
+};
+
+export const deleteObject = async (config: OSSConfig, objectKey: string) => {
+  const client = createClient(config);
+  await client.delete(objectKey);
 };
 
 export const restoreObject = async (

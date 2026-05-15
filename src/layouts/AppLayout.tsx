@@ -33,6 +33,9 @@ export function AppLayout({ loadMedia }: AppLayoutProps) {
             <NavLink to="/stats" className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}>
               统计
             </NavLink>
+            <NavLink to="/recovery" className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}>
+              回收站
+            </NavLink>
             <NavLink to="/settings" className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}>
               配置
             </NavLink>

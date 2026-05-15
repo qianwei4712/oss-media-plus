@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppLayout } from './layouts/AppLayout';
 import { LibraryPage } from './pages/LibraryPage';
+import { RecoveryPage } from './pages/RecoveryPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { StatsPage } from './pages/StatsPage';
 import { UploadPage } from './pages/UploadPage';
@@ -50,6 +51,7 @@ function App() {
         <Route path="/library" element={<LibraryPage />} />
         <Route path="/upload" element={<UploadPage />} />
         <Route path="/stats" element={<StatsPage />} />
+        <Route path="/recovery" element={<RecoveryPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/library" replace />} />
       </Route>

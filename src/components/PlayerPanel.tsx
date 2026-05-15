@@ -1,12 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRightLeft, ChevronRight, ExternalLink, Folder, Maximize2, Pause, Play, Volume2, X } from 'lucide-react';
-import { listDirectory, moveObject, normalizeDir, normalizeRoot, restoreObject, signObjectUrl } from '../oss';
+import {
+  ArrowRightLeft,
+  ChevronRight,
+  ExternalLink,
+  Folder,
+  Maximize2,
+  Pause,
+  Play,
+  Trash2,
+  Volume2,
+  X,
+} from 'lucide-react';
+import { listDirectory, moveObject, moveObjectToRecovery, normalizeDir, normalizeRoot, restoreObject, signObjectUrl } from '../oss';
 import { useAppStore } from '../store';
 import type { FolderItem, MediaItem } from '../types';
 
 interface PlayerPanelProps {
   item: MediaItem | null;
   onMoved: () => Promise<void>;
+  onDeleted: () => Promise<void>;
 }
 
 const formatTime = (value: number) => {
@@ -19,7 +31,7 @@ const formatTime = (value: number) => {
   return `${minutes}:${seconds}`;
 };
 
-export function PlayerPanel({ item, onMoved }: PlayerPanelProps) {
+export function PlayerPanel({ item, onMoved, onDeleted }: PlayerPanelProps) {
   const mediaRef = useRef<HTMLAudioElement & HTMLVideoElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -31,6 +43,7 @@ export function PlayerPanel({ item, onMoved }: PlayerPanelProps) {
   const [restoreHint, setRestoreHint] = useState('');
   const [moveOpen, setMoveOpen] = useState(false);
   const [moving, setMoving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [targetDir, setTargetDir] = useState('');
   const [pickerDir, setPickerDir] = useState('');
   const [pickerFolders, setPickerFolders] = useState<FolderItem[]>([]);
@@ -78,6 +91,7 @@ export function PlayerPanel({ item, onMoved }: PlayerPanelProps) {
     setRestoring(false);
     setRestoreHint('');
     setMoveOpen(false);
+    setDeleting(false);
     setTargetDir('');
     setPickerDir('');
     setPickerFolders([]);
@@ -272,6 +286,30 @@ export function PlayerPanel({ item, onMoved }: PlayerPanelProps) {
     }
   };
 
+  const submitDelete = async () => {
+    if (!config) {
+      setError('请先配置 OSS 连接。');
+      return;
+    }
+    if (!item) return;
+    if (!window.confirm(`确认将 "${item.name}" 移动到回收站吗？`)) {
+      return;
+    }
+
+    setDeleting(true);
+    setError('');
+    try {
+      await moveObjectToRecovery(config, item.path);
+      setCurrent(null);
+      await onDeleted();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '未知错误';
+      setError(`删除失败：${message}`);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (!item) {
     return (
       <section className="panel player-panel empty-player">
@@ -329,6 +367,15 @@ export function PlayerPanel({ item, onMoved }: PlayerPanelProps) {
         <button type="button" className="button secondary" onClick={openMove} disabled={!config || moving}>
           <ArrowRightLeft size={16} />
           移动到...
+        </button>
+        <button
+          type="button"
+          className="button danger"
+          onClick={() => void submitDelete()}
+          disabled={!config || moving || deleting}
+        >
+          <Trash2 size={16} />
+          {deleting ? '删除中...' : '删除到回收站'}
         </button>
       </div>
       {moveOpen ? (

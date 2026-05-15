@@ -4,6 +4,7 @@ export interface OSSConfig {
   accessKeyId: string;
   accessKeySecret: string;
   rootPath?: string;
+  recoveryPath?: string;
   secure?: boolean;
 }
 
@@ -22,6 +23,12 @@ export interface MediaItem {
 export interface FolderItem {
   name: string;
   path: string;
+}
+
+export interface RecoveryItem extends MediaItem {
+  originalPath: string;
+  recoveryObjectKey: string;
+  deletedAt: string;
 }
 
 export type UploadStatus = 'pending' | 'uploading' | 'done' | 'error';

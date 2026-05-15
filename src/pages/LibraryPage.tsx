@@ -118,7 +118,7 @@ export function LibraryPage() {
           selectedPath={current?.path}
         />
       </div>
-      <PlayerPanel item={current} onMoved={loadMedia} />
+      <PlayerPanel item={current} onMoved={loadMedia} onDeleted={loadMedia} />
     </main>
   );
 }
