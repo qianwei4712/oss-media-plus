@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { CloudUpload, FileUp, Trash2, X } from 'lucide-react';
-import { uploadFile, normalizeRoot } from '../oss';
+import { uploadFile, normalizeDir, normalizeRoot } from '../oss';
 import { useAppStore } from '../store';
 import type { UploadTask } from '../types';
 
@@ -27,6 +27,7 @@ interface UploadPanelProps {
 
 export function UploadPanel({ onUploaded }: UploadPanelProps) {
   const config = useAppStore((s) => s.config);
+  const currentDir = useAppStore((s) => s.currentDir);
   const uploads = useAppStore((s) => s.uploads);
   const addUploads = useAppStore((s) => s.addUploads);
   const updateUpload = useAppStore((s) => s.updateUpload);
@@ -43,7 +44,7 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
         return;
       }
 
-      const prefix = normalizeRoot(config.rootPath);
+      const prefix = `${normalizeRoot(config.rootPath)}${normalizeDir(currentDir)}`;
       const tasks: UploadTask[] = [];
 
       for (const file of Array.from(files)) {
@@ -79,7 +80,7 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
           });
       });
     },
-    [config, addUploads, updateUpload, setError],
+    [config, currentDir, addUploads, updateUpload, setError],
   );
 
   const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -116,7 +117,7 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
         <h2>上传文件</h2>
       </div>
       <p className="section-desc">
-        选择或拖拽图片、音频、视频文件到下方区域，上传到当前 OSS 根目录。
+        选择或拖拽图片、音频、视频文件到下方区域，上传到：{`${normalizeRoot(config?.rootPath)}${normalizeDir(currentDir)}` || '/'}
       </p>
       <div
         className={`upload-drop-zone${dragging ? ' dragging' : ''}`}

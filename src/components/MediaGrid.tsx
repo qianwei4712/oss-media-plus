@@ -122,7 +122,7 @@ export function MediaGrid({
         })}
       </div>
       {filtered.length === 0 ? (
-        <div className="empty-state">当前筛选结果为空，请检查根目录或上传对应媒体文件。</div>
+        <div className="empty-state">当前目录下没有符合筛选条件的媒体文件。</div>
       ) : null}
     </section>
   );

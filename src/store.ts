@@ -1,14 +1,18 @@
 import { create } from 'zustand';
-import type { MediaItem, OSSConfig, UploadTask } from './types';
+import type { FolderItem, MediaItem, OSSConfig, UploadTask } from './types';
 
 interface AppState {
   config: OSSConfig | null;
+  currentDir: string;
+  folders: FolderItem[];
   items: MediaItem[];
   current: MediaItem | null;
   loading: boolean;
   error: string;
   uploads: UploadTask[];
   setConfig: (config: OSSConfig) => void;
+  setCurrentDir: (dir: string) => void;
+  setFolders: (folders: FolderItem[]) => void;
   setItems: (items: MediaItem[]) => void;
   setCurrent: (item: MediaItem | null) => void;
   setLoading: (loading: boolean) => void;
@@ -17,6 +21,12 @@ interface AppState {
   updateUpload: (id: string, patch: Partial<UploadTask>) => void;
   clearDoneUploads: () => void;
 }
+
+const normalizeDir = (value: string) => {
+  const cleaned = value.trim().replace(/^\/+/, '');
+  if (!cleaned) return '';
+  return cleaned.endsWith('/') ? cleaned : `${cleaned}/`;
+};
 
 const readConfig = (): OSSConfig | null => {
   try {
@@ -29,6 +39,8 @@ const readConfig = (): OSSConfig | null => {
 
 export const useAppStore = create<AppState>((set) => ({
   config: readConfig(),
+  currentDir: '',
+  folders: [],
   items: [],
   current: null,
   loading: false,
@@ -38,6 +50,8 @@ export const useAppStore = create<AppState>((set) => ({
     localStorage.setItem('oss-media-plus-config', JSON.stringify(config));
     set({ config });
   },
+  setCurrentDir: (dir) => set({ currentDir: normalizeDir(dir), current: null }),
+  setFolders: (folders) => set({ folders }),
   setItems: (items) => set({ items }),
   setCurrent: (item) => set({ current: item }),
   setLoading: (loading) => set({ loading }),

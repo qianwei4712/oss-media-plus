@@ -18,6 +18,11 @@ export interface MediaItem {
   kind: MediaKind;
 }
 
+export interface FolderItem {
+  name: string;
+  path: string;
+}
+
 export type UploadStatus = 'pending' | 'uploading' | 'done' | 'error';
 
 export interface UploadTask {
