@@ -555,6 +555,7 @@ input:focus {
   line-height: 1.4;
 }
 
+.preview-frame,
 .image-preview,
 .video-shell,
 .audio-shell {
@@ -569,6 +570,23 @@ input:focus {
   max-height: 520px;
   object-fit: contain;
   background: #05070d;
+}
+
+.preview-frame:fullscreen {
+  width: 100vw;
+  height: 100vh;
+  display: grid;
+  place-items: center;
+  border-radius: 0;
+  background: #05070d;
+}
+
+.preview-frame:fullscreen img,
+.preview-frame:fullscreen video {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: contain;
 }
 
 .audio-shell {
@@ -597,6 +615,8 @@ input:focus {
 .player-actions {
   margin: 16px 0 18px;
   display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
   justify-content: flex-end;
 }
 
@@ -740,6 +760,36 @@ input[type="range"]::-webkit-slider-thumb {
   text-align: center;
   cursor: pointer;
   transition: border-color 0.2s, background 0.2s;
+}
+
+.upload-target-card {
+  margin-top: 14px;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  display: grid;
+  gap: 12px;
+}
+
+.upload-target-header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.upload-target-path {
+  color: #dce4ff;
+  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .upload-drop-zone:hover,

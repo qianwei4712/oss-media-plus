@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRightLeft, ChevronRight, Folder, Pause, Play, Volume2, X } from 'lucide-react';
+import { ArrowRightLeft, ChevronRight, ExternalLink, Folder, Maximize2, Pause, Play, Volume2, X } from 'lucide-react';
 import { listDirectory, moveObject, normalizeDir, normalizeRoot, restoreObject, signObjectUrl } from '../oss';
 import { useAppStore } from '../store';
 import type { FolderItem, MediaItem } from '../types';
@@ -21,7 +21,9 @@ const formatTime = (value: number) => {
 
 export function PlayerPanel({ item, onMoved }: PlayerPanelProps) {
   const mediaRef = useRef<HTMLAudioElement & HTMLVideoElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
@@ -82,6 +84,18 @@ export function PlayerPanel({ item, onMoved }: PlayerPanelProps) {
   }, [item?.path]);
 
   useEffect(() => {
+    const onFullscreenChange = () => {
+      setIsFullscreen(document.fullscreenElement === previewRef.current);
+    };
+
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', onFullscreenChange);
+    };
+  }, []);
+
+  useEffect(() => {
     const element = mediaRef.current;
     if (!element) return;
 
@@ -139,6 +153,34 @@ export function PlayerPanel({ item, onMoved }: PlayerPanelProps) {
     const url = signObjectUrl(config, item.path);
     patchItem(item.path, { url });
     setError('');
+  };
+
+  const openInNewWindow = () => {
+    if (!item) return;
+    const opened = window.open(item.url, '_blank', 'noopener,noreferrer');
+    if (!opened) {
+      setError('新窗口被浏览器拦截，请允许弹出窗口后重试。');
+      return;
+    }
+    setError('');
+  };
+
+  const enterFullscreen = async () => {
+    const element = previewRef.current;
+    if (!element) return;
+
+    if (!document.fullscreenEnabled) {
+      setError('当前浏览器不支持全屏查看。');
+      return;
+    }
+
+    try {
+      await element.requestFullscreen();
+      setError('');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '未知错误';
+      setError(`进入全屏失败：${message}`);
+    }
   };
 
   const submitRestore = async () => {
@@ -263,7 +305,7 @@ export function PlayerPanel({ item, onMoved }: PlayerPanelProps) {
         </div>
       ) : null}
       {item.kind === 'image' ? (
-        <div className="image-preview">
+        <div ref={previewRef} className="preview-frame image-preview">
           <img
             src={item.url}
             alt={item.name}
@@ -272,6 +314,18 @@ export function PlayerPanel({ item, onMoved }: PlayerPanelProps) {
         </div>
       ) : null}
       <div className="player-actions">
+        {item.kind === 'image' || item.kind === 'video' ? (
+          <>
+            <button type="button" className="button secondary" onClick={() => void enterFullscreen()}>
+              <Maximize2 size={16} />
+              全屏查看
+            </button>
+            <button type="button" className="button secondary" onClick={openInNewWindow}>
+              <ExternalLink size={16} />
+              新窗口打开
+            </button>
+          </>
+        ) : null}
         <button type="button" className="button secondary" onClick={openMove} disabled={!config || moving}>
           <ArrowRightLeft size={16} />
           移动到...
@@ -352,12 +406,13 @@ export function PlayerPanel({ item, onMoved }: PlayerPanelProps) {
         </div>
       ) : null}
       {item.kind === 'video' ? (
-        <div className="video-shell">
+        <div ref={previewRef} className="preview-frame video-shell">
           <video
             ref={mediaRef}
             src={item.url}
             preload="metadata"
             playsInline
+            controls={isFullscreen}
             onError={() => setError(needsRestore ? '视频加载失败：对象可能仍未解冻。' : '视频加载失败。')}
           />
         </div>

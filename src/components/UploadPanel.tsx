@@ -1,8 +1,8 @@
-import { useCallback, useRef, useState } from 'react';
-import { CloudUpload, FileUp, Trash2, X } from 'lucide-react';
-import { uploadFile, normalizeDir, normalizeRoot, detectMediaKindFromFile } from '../oss';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronRight, CloudUpload, FileUp, Folder, FolderPlus, LoaderCircle, Trash2 } from 'lucide-react';
+import { createFolder, detectMediaKindFromFile, listDirectory, normalizeDir, normalizeRoot, uploadFile } from '../oss';
 import { useAppStore } from '../store';
-import type { UploadTask } from '../types';
+import type { FolderItem, UploadTask } from '../types';
 
 const mediaExt = [
   'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'avif',
@@ -28,6 +28,8 @@ interface UploadPanelProps {
 export function UploadPanel({ onUploaded }: UploadPanelProps) {
   const config = useAppStore((s) => s.config);
   const currentDir = useAppStore((s) => s.currentDir);
+  const uploadDir = useAppStore((s) => s.uploadDir);
+  const setUploadDir = useAppStore((s) => s.setUploadDir);
   const uploads = useAppStore((s) => s.uploads);
   const addUploads = useAppStore((s) => s.addUploads);
   const updateUpload = useAppStore((s) => s.updateUpload);
@@ -36,6 +38,50 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
 
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
+  const [pickerDir, setPickerDir] = useState('');
+  const [pickerFolders, setPickerFolders] = useState<FolderItem[]>([]);
+  const [pickerLoading, setPickerLoading] = useState(false);
+  const [creatingFolder, setCreatingFolder] = useState(false);
+  const [folderName, setFolderName] = useState('');
+
+  const effectiveUploadDir = uploadDir || currentDir;
+
+  const pickerCrumbs = useMemo(() => {
+    const parts = pickerDir.split('/').filter(Boolean);
+    const result: Array<{ label: string; path: string }> = [{ label: '根目录', path: '' }];
+    parts.forEach((part, index) => {
+      const path = `${parts.slice(0, index + 1).join('/')}/`;
+      result.push({ label: part, path });
+    });
+    return result;
+  }, [pickerDir]);
+
+  const loadPickerFolders = useCallback(
+    async (dir: string) => {
+      if (!config) return;
+      setPickerLoading(true);
+      try {
+        const result = await listDirectory(config, dir);
+        setPickerFolders(result.folders);
+      } finally {
+        setPickerLoading(false);
+      }
+    },
+    [config],
+  );
+
+  useEffect(() => {
+    if (!uploadDir && currentDir) {
+      setUploadDir(currentDir);
+    }
+  }, [currentDir, uploadDir, setUploadDir]);
+
+  useEffect(() => {
+    if (!config) return;
+    const nextDir = effectiveUploadDir;
+    setPickerDir(nextDir);
+    void loadPickerFolders(nextDir);
+  }, [config, effectiveUploadDir, loadPickerFolders]);
 
   const handleFiles = useCallback(
     (files: FileList) => {
@@ -44,7 +90,8 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
         return;
       }
 
-      const prefix = `${normalizeRoot(config.rootPath)}${normalizeDir(currentDir)}`;
+      const normalizedTargetDir = normalizeDir(effectiveUploadDir);
+      const prefix = `${normalizeRoot(config.rootPath)}${normalizedTargetDir}`;
       const tasks: UploadTask[] = [];
 
       for (const file of Array.from(files)) {
@@ -54,6 +101,7 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
           id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           file,
           objectKey,
+          targetDir: normalizedTargetDir,
           status: 'pending',
           progress: 0,
         });
@@ -65,6 +113,7 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
       }
 
       addUploads(tasks);
+      setError('');
 
       tasks.forEach((task) => {
         const kind = detectMediaKindFromFile(task.file, task.objectKey);
@@ -85,8 +134,47 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
           });
       });
     },
-    [config, currentDir, addUploads, updateUpload, setError],
+    [config, effectiveUploadDir, addUploads, updateUpload, setError],
   );
+
+  const enterPickerDir = async (dir: string) => {
+    const normalized = normalizeDir(dir);
+    setPickerDir(normalized);
+    setUploadDir(normalized);
+    setError('');
+    try {
+      await loadPickerFolders(normalized);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '未知错误';
+      setError(`读取目录失败：${message}`);
+    }
+  };
+
+  const handleCreateFolder = async () => {
+    if (!config) {
+      setError('请先配置 OSS 连接。');
+      return;
+    }
+
+    const cleaned = folderName.trim().replace(/^\/+/, '').replace(/\/+$/, '');
+    if (!cleaned) {
+      setError('文件夹名称不能为空。');
+      return;
+    }
+
+    setCreatingFolder(true);
+    setError('');
+    try {
+      await createFolder(config, pickerDir, cleaned);
+      setFolderName('');
+      await enterPickerDir(`${normalizeDir(pickerDir)}${cleaned}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '未知错误';
+      setError(`新建文件夹失败：${message}`);
+    } finally {
+      setCreatingFolder(false);
+    }
+  };
 
   const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.length) {
@@ -121,9 +209,73 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
         <CloudUpload size={18} />
         <h2>上传文件</h2>
       </div>
-      <p className="section-desc">
-        选择或拖拽图片、音频、视频文件到下方区域，上传到：{`${normalizeRoot(config?.rootPath)}${normalizeDir(currentDir)}` || '/'}
-      </p>
+      <p className="section-desc">先选好上传目录，再选择或拖拽图片、音频、视频文件。</p>
+      <div className="upload-target-card">
+        <div className="upload-target-header">
+          <div className="move-dialog-title">
+            <Folder size={16} />
+            <span>上传目标目录</span>
+          </div>
+          <div className="upload-target-path">
+            {`${normalizeRoot(config?.rootPath)}${normalizeDir(effectiveUploadDir)}` || '/'}
+          </div>
+        </div>
+        <div className="breadcrumbs breadcrumbs-compact">
+          {pickerCrumbs.map((crumb, index) => (
+            <div key={crumb.path || 'root'} className="breadcrumb-item">
+              <button
+                type="button"
+                className="breadcrumb-link"
+                onClick={() => void enterPickerDir(crumb.path)}
+                disabled={pickerLoading || creatingFolder || crumb.path === pickerDir}
+              >
+                {crumb.label}
+              </button>
+              {index < pickerCrumbs.length - 1 ? <ChevronRight size={14} className="breadcrumb-sep" /> : null}
+            </div>
+          ))}
+        </div>
+        <div className="folder-grid folder-grid-compact">
+          {pickerLoading ? (
+            <div className="empty-state empty-state-sm">
+              <LoaderCircle size={20} className="spin" />
+              <span>正在加载目录...</span>
+            </div>
+          ) : pickerFolders.length ? (
+            pickerFolders.map((folder) => (
+                <button
+                  key={folder.path}
+                  type="button"
+                  className="folder-card"
+                  onClick={() => void enterPickerDir(folder.path)}
+                  disabled={creatingFolder}
+                >
+                  <Folder size={18} />
+                  <span>{folder.name}</span>
+                </button>
+              ))
+          ) : (
+            <div className="empty-state empty-state-sm">当前目录下没有子文件夹。</div>
+          )}
+        </div>
+        <div className="folder-create-row">
+          <input
+            value={folderName}
+            onChange={(event) => setFolderName(event.target.value)}
+            placeholder="新建文件夹名称"
+            disabled={pickerLoading || creatingFolder}
+          />
+          <button
+            type="button"
+            className="button secondary"
+            onClick={() => void handleCreateFolder()}
+            disabled={pickerLoading || creatingFolder}
+          >
+            <FolderPlus size={16} />
+            {creatingFolder ? '创建中...' : '创建'}
+          </button>
+        </div>
+      </div>
       <div
         className={`upload-drop-zone${dragging ? ' dragging' : ''}`}
         onDrop={onDrop}
@@ -150,7 +302,9 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
             <div key={task.id} className={`upload-item upload-${task.status}`}>
               <div className="upload-item-info">
                 <strong>{task.file.name}</strong>
-                <small>{formatSize(task.file.size)}</small>
+                <small>
+                  {formatSize(task.file.size)} · {task.targetDir ? `/${task.targetDir}` : '/'}
+                </small>
               </div>
               {task.status === 'uploading' ? (
                 <div className="upload-progress-bar">

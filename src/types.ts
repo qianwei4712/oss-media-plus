@@ -30,6 +30,7 @@ export interface UploadTask {
   id: string;
   file: File;
   objectKey: string;
+  targetDir: string;
   status: UploadStatus;
   progress: number;
   error?: string;

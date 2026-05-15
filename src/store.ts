@@ -4,6 +4,7 @@ import type { FolderItem, MediaItem, OSSConfig, UploadTask } from './types';
 interface AppState {
   config: OSSConfig | null;
   currentDir: string;
+  uploadDir: string;
   folders: FolderItem[];
   items: MediaItem[];
   current: MediaItem | null;
@@ -12,6 +13,7 @@ interface AppState {
   uploads: UploadTask[];
   setConfig: (config: OSSConfig) => void;
   setCurrentDir: (dir: string) => void;
+  setUploadDir: (dir: string) => void;
   setFolders: (folders: FolderItem[]) => void;
   setItems: (items: MediaItem[]) => void;
   setCurrent: (item: MediaItem | null) => void;
@@ -38,9 +40,18 @@ const readConfig = (): OSSConfig | null => {
   }
 };
 
+const readUploadDir = () => {
+  try {
+    return normalizeDir(localStorage.getItem('oss-media-plus-upload-dir') ?? '');
+  } catch {
+    return '';
+  }
+};
+
 export const useAppStore = create<AppState>((set) => ({
   config: readConfig(),
   currentDir: '',
+  uploadDir: readUploadDir(),
   folders: [],
   items: [],
   current: null,
@@ -52,6 +63,11 @@ export const useAppStore = create<AppState>((set) => ({
     set({ config });
   },
   setCurrentDir: (dir) => set({ currentDir: normalizeDir(dir), current: null }),
+  setUploadDir: (dir) => {
+    const normalized = normalizeDir(dir);
+    localStorage.setItem('oss-media-plus-upload-dir', normalized);
+    set({ uploadDir: normalized });
+  },
   setFolders: (folders) => set({ folders }),
   setItems: (items) => set({ items }),
   setCurrent: (item) => set({ current: item }),
