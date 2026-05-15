@@ -43,6 +43,7 @@ video {
 }
 
 .hero,
+.topbar,
 .panel,
 .stat-card,
 .status-banner {
@@ -50,6 +51,74 @@ video {
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
   backdrop-filter: blur(20px);
+}
+
+.topbar {
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 22px;
+  border-radius: 26px;
+}
+
+.topbar-left {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  min-width: 0;
+}
+
+.brand {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.brand strong {
+  font-size: 16px;
+  letter-spacing: 0.02em;
+}
+
+.brand span {
+  color: #97a3c1;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.nav {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.nav-link {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #edf1ff;
+  text-decoration: none;
+  transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+}
+
+.nav-link:hover {
+  transform: translateY(-1px);
+}
+
+.nav-link.active {
+  background: rgba(124, 109, 255, 0.2);
+  border-color: rgba(124, 109, 255, 0.5);
+}
+
+.page-shell {
+  margin-top: 18px;
+}
+
+.page-single {
+  display: grid;
+  gap: 18px;
 }
 
 .hero {
@@ -105,6 +174,16 @@ video {
 .stats-row {
   gap: 16px;
   margin: 18px 0;
+}
+
+.stats-row-page {
+  margin: 0;
+  flex-wrap: wrap;
+}
+
+.stat-card-total {
+  flex: 0.6;
+  justify-content: space-between;
 }
 
 .stat-card {
@@ -607,6 +686,20 @@ input[type="range"]::-webkit-slider-thumb {
   .app-shell {
     width: min(100% - 20px, 1440px);
     padding-top: 12px;
+  }
+
+  .topbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .topbar-left {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .nav {
+    justify-content: flex-start;
   }
 
   .hero,

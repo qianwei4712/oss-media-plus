@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pause, Play, Volume2 } from 'lucide-react';
+import { useAppStore } from '../store';
 import type { MediaItem } from '../types';
 
 interface PlayerPanelProps {
@@ -22,8 +23,15 @@ export function PlayerPanel({ item }: PlayerPanelProps) {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
+  const setError = useAppStore((state) => state.setError);
 
   useEffect(() => {
+    const element = mediaRef.current;
+    if (element) {
+      element.pause();
+      element.currentTime = 0;
+      element.load();
+    }
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
@@ -59,8 +67,14 @@ export function PlayerPanel({ item }: PlayerPanelProps) {
     if (!element) return;
 
     if (element.paused) {
-      await element.play();
-      setIsPlaying(true);
+      try {
+        await element.play();
+        setIsPlaying(true);
+        setError('');
+      } catch (err) {
+        const message = err instanceof Error ? err.message : '未知错误';
+        setError(`播放失败：${message}`);
+      }
       return;
     }
 
