@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import { listDirectory, moveObject, moveObjectToRecovery, normalizeDir, normalizeRoot, restoreObject, signObjectUrl } from '../oss';
+import { useIsMobile } from '../hooks/useIsMobile';
 import { useAppStore } from '../store';
 import type { FolderItem, MediaItem } from '../types';
 
@@ -32,6 +33,7 @@ const formatTime = (value: number) => {
 };
 
 export function PlayerPanel({ item, onMoved, onDeleted }: PlayerPanelProps) {
+  const isMobile = useIsMobile();
   const panelRef = useRef<HTMLElement>(null);
   const mediaRef = useRef<HTMLAudioElement & HTMLVideoElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
@@ -364,7 +366,7 @@ export function PlayerPanel({ item, onMoved, onDeleted }: PlayerPanelProps) {
         </div>
       ) : null}
 
-      <div className="player-actions">
+      <div className={isMobile ? 'player-actions mobile-sticky-actions' : 'player-actions'}>
         {item.kind === 'image' || item.kind === 'video' ? (
           <>
             <button type="button" className="button secondary" onClick={() => void enterFullscreen()}>
@@ -508,6 +510,7 @@ export function PlayerPanel({ item, onMoved, onDeleted }: PlayerPanelProps) {
           </div>
         </div>
       ) : null}
+      {isMobile ? <div className="mobile-action-spacer" aria-hidden="true" /> : null}
     </section>
   );
 }

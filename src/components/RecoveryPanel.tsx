@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ExternalLink, Maximize2, Pause, Play, RotateCcw, Trash2, Volume2 } from 'lucide-react';
+import { useIsMobile } from '../hooks/useIsMobile';
 import { deleteObject, restoreObject, restoreRecoveryObject, signObjectUrl } from '../oss';
 import { useAppStore } from '../store';
 import type { RecoveryItem } from '../types';
@@ -27,6 +28,7 @@ const formatDeletedAt = (value: string) => {
 };
 
 export function RecoveryPanel({ item, onRestored, onDeleted }: RecoveryPanelProps) {
+  const isMobile = useIsMobile();
   const panelRef = useRef<HTMLElement>(null);
   const mediaRef = useRef<HTMLAudioElement & HTMLVideoElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
@@ -296,7 +298,7 @@ export function RecoveryPanel({ item, onRestored, onDeleted }: RecoveryPanelProp
         </div>
       ) : null}
 
-      <div className="player-actions">
+      <div className={isMobile ? 'player-actions mobile-sticky-actions' : 'player-actions'}>
         {item.kind === 'image' || item.kind === 'video' ? (
           <>
             <button type="button" className="button secondary" onClick={() => void enterFullscreen()}>
@@ -376,6 +378,7 @@ export function RecoveryPanel({ item, onRestored, onDeleted }: RecoveryPanelProp
           </div>
         </div>
       ) : null}
+      {isMobile ? <div className="mobile-action-spacer" aria-hidden="true" /> : null}
     </section>
   );
 }
