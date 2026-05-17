@@ -1,0 +1,20 @@
+* text=auto
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.bmp binary
+*.svg text
+*.ico binary
+*.mp3 binary
+*.wav binary
+*.m4a binary
+*.aac binary
+*.ogg binary
+*.flac binary
+*.mp4 binary
+*.webm binary
+*.mov binary
+*.mkv binary

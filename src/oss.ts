@@ -6,6 +6,16 @@ const audioExt = ['mp3', 'wav', 'm4a', 'aac', 'ogg', 'flac'];
 const videoExt = ['mp4', 'webm', 'mov', 'm3u8', 'mkv'];
 const defaultSignatureExpires = 7 * 24 * 60 * 60;
 const defaultRecoveryDir = 'recovery';
+const mediaListCache = new Map<string, MediaItem[]>();
+
+const getMediaCacheKey = (config: OSSConfig) =>
+  JSON.stringify({
+    region: config.region,
+    bucket: config.bucket,
+    rootPath: normalizeRoot(config.rootPath),
+    recoveryPath: normalizeRecoveryDir(config.recoveryPath),
+    secure: config.secure ?? true,
+  });
 
 export const createClient = (config: OSSConfig) =>
   new OSS({
@@ -99,7 +109,7 @@ export const uploadFile = async (
 ) => {
   const client = createClient(config);
   const tagging = tags ? encodeTagging(tags) : '';
-  const result = await client.put(objectKey, file, {
+  const putOptions = {
     mime: file.type,
     headers: tagging ? { 'x-oss-tagging': tagging } : undefined,
     progress: onProgress
@@ -107,11 +117,29 @@ export const uploadFile = async (
           onProgress(Math.round(percent * 100));
         }
       : undefined,
-  });
+  } as any;
+  const result = await client.put(objectKey, file, putOptions);
   return result;
 };
 
-export const listMediaObjects = async (config: OSSConfig) => {
+export const invalidateMediaListCache = (config?: OSSConfig) => {
+  if (!config) {
+    mediaListCache.clear();
+    return;
+  }
+
+  mediaListCache.delete(getMediaCacheKey(config));
+};
+
+export const listMediaObjects = async (config: OSSConfig, options?: { forceRefresh?: boolean }) => {
+  const cacheKey = getMediaCacheKey(config);
+  if (!options?.forceRefresh) {
+    const cached = mediaListCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+  }
+
   const client = createClient(config);
   const prefix = normalizeRoot(config.rootPath);
   const recoveryPrefix = getRecoveryPrefix(config);
@@ -148,7 +176,9 @@ export const listMediaObjects = async (config: OSSConfig) => {
     nextMarker = result.isTruncated ? result.nextMarker : undefined;
   } while (nextMarker);
 
-  return items.sort((a, b) => b.lastModified.localeCompare(a.lastModified));
+  const sortedItems = items.sort((a, b) => b.lastModified.localeCompare(a.lastModified));
+  mediaListCache.set(cacheKey, sortedItems);
+  return sortedItems;
 };
 
 const compareMediaByName = (left: MediaItem, right: MediaItem, sort: MediaSort) => {
@@ -244,6 +274,7 @@ export const createFolder = async (config: OSSConfig, dir: string, folderName: s
   const rootPrefix = normalizeRoot(config.rootPath);
   const folderKey = `${rootPrefix}${normalizeDir(dir)}${cleaned}/`;
   await client.put(folderKey, new Blob([]));
+  invalidateMediaListCache(config);
   return folderKey;
 };
 
@@ -251,6 +282,7 @@ export const moveObject = async (config: OSSConfig, fromKey: string, toKey: stri
   const client = createClient(config);
   await client.copy(toKey, fromKey);
   await client.delete(fromKey);
+  invalidateMediaListCache(config);
 };
 
 const objectExists = async (config: OSSConfig, objectKey: string) => {
@@ -360,6 +392,7 @@ export const restoreRecoveryObjects = async (
 export const deleteObject = async (config: OSSConfig, objectKey: string) => {
   const client = createClient(config);
   await client.delete(objectKey);
+  invalidateMediaListCache(config);
 };
 
 export const deleteObjects = async (config: OSSConfig, objectKeys: string[]): Promise<BatchOperationResult> => {

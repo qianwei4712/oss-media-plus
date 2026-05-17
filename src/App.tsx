@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppLayout } from './layouts/AppLayout';
-import { listDirectory, searchMediaObjects } from './oss';
+import { invalidateMediaListCache, listDirectory, searchMediaObjects } from './oss';
 import { LibraryPage } from './pages/LibraryPage';
 import { RecoveryPage } from './pages/RecoveryPage';
 import { SettingsPage } from './pages/SettingsPage';
@@ -10,6 +10,7 @@ import { UploadPage } from './pages/UploadPage';
 import { useAppStore } from './store';
 
 const SEARCH_PAGE_SIZE = 24;
+const SEARCH_DEBOUNCE_MS = 300;
 
 function App() {
   const config = useAppStore((state) => state.config);
@@ -27,9 +28,17 @@ function App() {
   const setSearchResults = useAppStore((state) => state.setSearchResults);
   const setSearchCursor = useAppStore((state) => state.setSearchCursor);
   const setSearchHasMore = useAppStore((state) => state.setSearchHasMore);
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
+  const latestRequestIdRef = useRef(0);
 
-  const loadDirectoryState = async (nextConfig: NonNullable<typeof config>, nextDir: string, preserveSearchResults = true) => {
+  const loadDirectoryState = async (
+    nextConfig: NonNullable<typeof config>,
+    nextDir: string,
+    requestId: number,
+    preserveSearchResults = true,
+  ) => {
     const directoryResult = await listDirectory(nextConfig, nextDir);
+    if (requestId !== latestRequestIdRef.current) return;
     setFolders(directoryResult.folders);
 
     if (!preserveSearchResults) {
@@ -42,50 +51,63 @@ function App() {
     nextConfig: NonNullable<typeof config>,
     nextSearchQuery: string,
     nextSearchSort: typeof searchSort,
+    requestId: number,
   ) => {
     const previousCurrentPath = useAppStore.getState().current?.path;
     const result = await searchMediaObjects(nextConfig, {
       query: nextSearchQuery,
       sort: nextSearchSort,
     });
+    if (requestId !== latestRequestIdRef.current) return;
     const initialItems = result.slice(0, SEARCH_PAGE_SIZE);
     setSearchResults(result);
     setSearchCursor(initialItems.length);
     setSearchHasMore(result.length > initialItems.length);
     setItems(initialItems);
-    setCurrent(initialItems.find((item) => item.path === previousCurrentPath) ?? initialItems[0] ?? null);
+    setCurrent(initialItems.find((nextItem) => nextItem.path === previousCurrentPath) ?? initialItems[0] ?? null);
   };
 
-  const loadMedia = async () => {
+  const runLoadCycle = async (options?: { forceRefresh?: boolean }) => {
     const nextConfig = useAppStore.getState().config;
     const nextDir = useAppStore.getState().currentDir;
     const nextSearchQuery = useAppStore.getState().searchQuery.trim();
     const nextSearchSort = useAppStore.getState().searchSort;
     if (!nextConfig) return;
 
+    const requestId = ++latestRequestIdRef.current;
+    if (options?.forceRefresh) {
+      invalidateMediaListCache(nextConfig);
+    }
+
     setLoading(true);
     setError('');
     try {
       if (nextSearchQuery) {
-        await loadDirectoryState(nextConfig, nextDir, true);
-        await loadSearchState(nextConfig, nextSearchQuery, nextSearchSort);
-        return;
+        await loadDirectoryState(nextConfig, nextDir, requestId, true);
+        await loadSearchState(nextConfig, nextSearchQuery, nextSearchSort, requestId);
+      } else {
+        setSearchResults([]);
+        setSearchCursor(0);
+        setSearchHasMore(false);
+        await loadDirectoryState(nextConfig, nextDir, requestId, false);
       }
-
-      setSearchResults([]);
-      setSearchCursor(0);
-      setSearchHasMore(false);
-      await loadDirectoryState(nextConfig, nextDir, false);
     } catch (loadError) {
-      const message = loadError instanceof Error ? loadError.message : '未知错误';
-      setError(`加载媒体失败：${message}`);
+      if (requestId !== latestRequestIdRef.current) return;
+      const message = loadError instanceof Error ? loadError.message : '鏈煡閿欒';
+      setError(`鍔犺浇濯掍綋澶辫触锛?{message}`);
     } finally {
-      setLoading(false);
+      if (requestId === latestRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   };
 
+  const loadMedia = async () => {
+    await runLoadCycle({ forceRefresh: true });
+  };
+
   const loadMoreMedia = () => {
-    const nextSearchQuery = useAppStore.getState().searchQuery.trim();
+    const nextSearchQuery = debouncedSearchQuery.trim();
     if (!nextSearchQuery || !searchHasMore) return;
 
     const nextItems = searchResults.slice(0, searchCursor + SEARCH_PAGE_SIZE);
@@ -95,46 +117,17 @@ function App() {
   };
 
   useEffect(() => {
-    if (config) {
-      void (async () => {
-        setLoading(true);
-        setError('');
-        try {
-          await loadDirectoryState(config, currentDir, Boolean(searchQuery.trim()));
-        } catch (loadError) {
-          const message = loadError instanceof Error ? loadError.message : '未知错误';
-          setError(`加载媒体失败：${message}`);
-        } finally {
-          setLoading(false);
-        }
-      })();
-    }
-  }, [config, currentDir]);
+    const timer = window.setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
 
   useEffect(() => {
     if (!config) return;
-
-    void (async () => {
-      setLoading(true);
-      setError('');
-      try {
-        if (searchQuery.trim()) {
-          await loadSearchState(config, searchQuery.trim(), searchSort);
-          return;
-        }
-
-        setSearchResults([]);
-        setSearchCursor(0);
-        setSearchHasMore(false);
-        await loadDirectoryState(config, currentDir, false);
-      } catch (loadError) {
-        const message = loadError instanceof Error ? loadError.message : '未知错误';
-        setError(`加载媒体失败：${message}`);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [config, searchQuery, searchSort]);
+    void runLoadCycle();
+  }, [config, currentDir, debouncedSearchQuery, searchSort]);
 
   return (
     <Routes>
