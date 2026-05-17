@@ -27,6 +27,7 @@ const formatDeletedAt = (value: string) => {
 };
 
 export function RecoveryPanel({ item, onRestored, onDeleted }: RecoveryPanelProps) {
+  const panelRef = useRef<HTMLElement>(null);
   const mediaRef = useRef<HTMLAudioElement & HTMLVideoElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const config = useAppStore((state) => state.config);
@@ -60,6 +61,16 @@ export function RecoveryPanel({ item, onRestored, onDeleted }: RecoveryPanelProp
     setRestoringItem(false);
     setDeletingItem(false);
     setMediaUrl(item?.url ?? '');
+  }, [item?.recoveryObjectKey]);
+
+  useEffect(() => {
+    if (!item || typeof window === 'undefined') return;
+    if (window.innerWidth > 1100) return;
+
+    panelRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
   }, [item?.recoveryObjectKey]);
 
   useEffect(() => {
@@ -239,7 +250,7 @@ export function RecoveryPanel({ item, onRestored, onDeleted }: RecoveryPanelProp
 
   if (!item) {
     return (
-      <section className="panel player-panel empty-player">
+      <section ref={panelRef} className="panel player-panel empty-player">
         <h2>回收站预览</h2>
         <p>从左侧选择一个已删除的媒体文件，这里会显示预览和恢复操作。</p>
       </section>
@@ -247,7 +258,7 @@ export function RecoveryPanel({ item, onRestored, onDeleted }: RecoveryPanelProp
   }
 
   return (
-    <section className="panel player-panel">
+    <section ref={panelRef} className="panel player-panel">
       <div className="section-head">
         <div className="section-title">
           <h2>回收站预览</h2>

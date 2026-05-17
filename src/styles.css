@@ -352,6 +352,7 @@ video {
   flex: 0.95;
   position: sticky;
   top: 24px;
+  scroll-margin-top: 16px;
 }
 
 .panel {
@@ -1213,9 +1214,14 @@ input[type="range"]::-webkit-slider-thumb {
     flex-direction: column;
   }
 
+  .left-column {
+    order: 2;
+  }
+
   .player-panel {
     position: static;
     width: 100%;
+    order: 1;
   }
 
   .media-grid {

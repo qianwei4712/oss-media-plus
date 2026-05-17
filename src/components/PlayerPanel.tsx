@@ -32,6 +32,7 @@ const formatTime = (value: number) => {
 };
 
 export function PlayerPanel({ item, onMoved, onDeleted }: PlayerPanelProps) {
+  const panelRef = useRef<HTMLElement>(null);
   const mediaRef = useRef<HTMLAudioElement & HTMLVideoElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -95,6 +96,16 @@ export function PlayerPanel({ item, onMoved, onDeleted }: PlayerPanelProps) {
     setTargetDir('');
     setPickerDir('');
     setPickerFolders([]);
+  }, [item?.path]);
+
+  useEffect(() => {
+    if (!item || typeof window === 'undefined') return;
+    if (window.innerWidth > 1100) return;
+
+    panelRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
   }, [item?.path]);
 
   useEffect(() => {
@@ -308,7 +319,7 @@ export function PlayerPanel({ item, onMoved, onDeleted }: PlayerPanelProps) {
 
   if (!item) {
     return (
-      <section className="panel player-panel empty-player">
+      <section ref={panelRef} className="panel player-panel empty-player">
         <h2>预览面板</h2>
         <p>从左侧选择图片、音频或视频后，这里会显示预览与操作控制。</p>
       </section>
@@ -316,7 +327,7 @@ export function PlayerPanel({ item, onMoved, onDeleted }: PlayerPanelProps) {
   }
 
   return (
-    <section className="panel player-panel">
+    <section ref={panelRef} className="panel player-panel">
       <div className="section-head">
         <div className="section-title">
           <h2>预览与操作</h2>
