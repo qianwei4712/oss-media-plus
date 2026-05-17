@@ -26,6 +26,37 @@ interface AppLayoutProps {
   loadMoreMedia: () => void;
 }
 
+const pageMeta: Record<string, { title: string; description: string }> = {
+  '/library': {
+    title: '媒体库',
+    description: '浏览目录、搜索资源、预览并管理媒体文件。',
+  },
+  '/upload': {
+    title: '上传中心',
+    description: '选择目标目录后批量上传图片、音频和视频。',
+  },
+  '/stats': {
+    title: '统计概览',
+    description: '查看当前媒体列表的分类数量与整体规模。',
+  },
+  '/recovery': {
+    title: '回收站',
+    description: '恢复误删资源，或执行彻底删除。',
+  },
+  '/settings': {
+    title: '连接配置',
+    description: '管理 OSS 连接信息与媒体根目录设置。',
+  },
+};
+
+const navigationItems = [
+  { to: '/library', icon: FolderKanban, label: '媒体库' },
+  { to: '/upload', icon: Upload, label: '上传' },
+  { to: '/stats', icon: ChartColumn, label: '统计' },
+  { to: '/recovery', icon: Archive, label: '回收站' },
+  { to: '/settings', icon: Settings2, label: '配置' },
+] as const;
+
 export function AppLayout({ loadMedia, loadMoreMedia }: AppLayoutProps) {
   const location = useLocation();
   const config = useAppStore((state) => state.config);
@@ -41,29 +72,6 @@ export function AppLayout({ loadMedia, loadMoreMedia }: AppLayoutProps) {
     document.documentElement.dataset.theme = theme;
     document.documentElement.style.colorScheme = theme;
   }, [theme]);
-
-  const pageMeta: Record<string, { title: string; description: string }> = {
-    '/library': {
-      title: '媒体库',
-      description: '浏览目录、搜索资源、预览并管理媒体文件。',
-    },
-    '/upload': {
-      title: '上传中心',
-      description: '选择目标目录后批量上传图片、音频和视频。',
-    },
-    '/stats': {
-      title: '统计概览',
-      description: '查看当前媒体列表的分类数量与整体规模。',
-    },
-    '/recovery': {
-      title: '回收站',
-      description: '恢复误删资源，或执行彻底删除。',
-    },
-    '/settings': {
-      title: '连接配置',
-      description: '管理 OSS 连接信息与媒体根目录设置。',
-    },
-  };
 
   const currentMeta = pageMeta[location.pathname] ?? pageMeta['/library'];
   const pendingUploads = uploads.filter((task) => task.status === 'pending' || task.status === 'uploading').length;
@@ -83,26 +91,18 @@ export function AppLayout({ loadMedia, loadMoreMedia }: AppLayoutProps) {
         </div>
 
         <nav className="sidebar-nav">
-          <NavLink to="/library" className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}>
-            <FolderKanban size={18} />
-            媒体库
-          </NavLink>
-          <NavLink to="/upload" className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}>
-            <Upload size={18} />
-            上传
-          </NavLink>
-          <NavLink to="/stats" className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}>
-            <ChartColumn size={18} />
-            统计
-          </NavLink>
-          <NavLink to="/recovery" className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}>
-            <Archive size={18} />
-            回收站
-          </NavLink>
-          <NavLink to="/settings" className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}>
-            <Settings2 size={18} />
-            配置
-          </NavLink>
+          {navigationItems.map(({ to, icon: Icon, label }) => (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
+              aria-label={label}
+              title={label}
+            >
+              <Icon size={18} />
+              <span className="nav-link-label">{label}</span>
+            </NavLink>
+          ))}
         </nav>
 
         <div className="sidebar-card">
@@ -133,26 +133,28 @@ export function AppLayout({ loadMedia, loadMoreMedia }: AppLayoutProps) {
                 <strong>{items.length}</strong>
               </div>
               <div className="topbar-stat">
-                <span>上传队列</span>
+                <span>上传</span>
                 <strong>{pendingUploads}</strong>
               </div>
             </div>
 
-            <button
-              type="button"
-              className="button secondary theme-toggle"
-              onClick={() => setTheme(isDark ? 'light' : 'dark')}
-              aria-label={isDark ? '切换到浅色模式' : '切换到暗黑模式'}
-              title={isDark ? '切换到浅色模式' : '切换到暗黑模式'}
-            >
-              {isDark ? <Sun size={16} /> : <Moon size={16} />}
-              <span className="theme-toggle-label">{isDark ? '浅色' : '暗黑'}</span>
-            </button>
+            <div className="topbar-action-buttons">
+              <button
+                type="button"
+                className="button secondary theme-toggle"
+                onClick={() => setTheme(isDark ? 'light' : 'dark')}
+                aria-label={isDark ? '切换到浅色模式' : '切换到深色模式'}
+                title={isDark ? '切换到浅色模式' : '切换到深色模式'}
+              >
+                {isDark ? <Sun size={16} /> : <Moon size={16} />}
+                <span className="theme-toggle-label">{isDark ? '浅色' : '深色'}</span>
+              </button>
 
-            <button type="button" className="button primary" onClick={() => void loadMedia()} disabled={!config || loading}>
-              <RefreshCcw size={16} className={loading ? 'spin' : ''} />
-              刷新列表
-            </button>
+              <button type="button" className="button primary topbar-refresh" onClick={() => void loadMedia()} disabled={!config || loading}>
+                <RefreshCcw size={16} className={loading ? 'spin' : ''} />
+                <span className="topbar-refresh-label">刷新列表</span>
+              </button>
+            </div>
           </div>
         </header>
 
