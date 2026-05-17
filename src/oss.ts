@@ -1,5 +1,5 @@
 import OSS from 'ali-oss';
-import type { FolderItem, MediaItem, MediaKind, OSSConfig, RecoveryItem } from './types';
+import type { BatchOperationResult, FolderItem, MediaItem, MediaKind, MediaSort, OSSConfig, RecoveryItem } from './types';
 
 const imageExt = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'avif'];
 const audioExt = ['mp3', 'wav', 'm4a', 'aac', 'ogg', 'flac'];
@@ -151,6 +151,23 @@ export const listMediaObjects = async (config: OSSConfig) => {
   return items.sort((a, b) => b.lastModified.localeCompare(a.lastModified));
 };
 
+const compareMediaByName = (left: MediaItem, right: MediaItem, sort: MediaSort) => {
+  const base = left.name.localeCompare(right.name, 'zh-CN', { sensitivity: 'base' });
+  const tieBreaker = left.path.localeCompare(right.path, 'zh-CN', { sensitivity: 'base' });
+  const resolved = base || tieBreaker;
+  return sort === 'name-desc' ? -resolved : resolved;
+};
+
+export const searchMediaObjects = async (
+  config: OSSConfig,
+  options: { query: string; sort: MediaSort },
+) => {
+  const query = options.query.trim().toLowerCase();
+  const items = await listMediaObjects(config);
+  const filtered = items.filter((item) => item.name.toLowerCase().includes(query));
+  return filtered.sort((left, right) => compareMediaByName(left, right, options.sort));
+};
+
 const removeRootPrefix = (rootPrefix: string, value: string) => {
   if (!rootPrefix) return value;
   return value.startsWith(rootPrefix) ? value.slice(rootPrefix.length) : value;
@@ -297,7 +314,6 @@ export const listRecoveryItems = async (config: OSSConfig) => {
 
   return items.sort((a, b) => b.deletedAt.localeCompare(a.deletedAt));
 };
-
 export const restoreRecoveryObject = async (config: OSSConfig, recoveryObjectKey: string) => {
   const parsed = parseRecoveryObjectKey(config, recoveryObjectKey);
   if (!parsed) {
@@ -311,9 +327,66 @@ export const restoreRecoveryObject = async (config: OSSConfig, recoveryObjectKey
   return parsed.originalPath;
 };
 
+export const restoreRecoveryObjects = async (
+  config: OSSConfig,
+  recoveryObjectKeys: string[],
+): Promise<BatchOperationResult> => {
+  if (!recoveryObjectKeys.length) {
+    return { successCount: 0, failureCount: 0, failures: [] };
+  }
+
+  let successCount = 0;
+  const failures: Array<{ key: string; reason: string }> = [];
+
+  for (const recoveryObjectKey of recoveryObjectKeys) {
+    try {
+      await restoreRecoveryObject(config, recoveryObjectKey);
+      successCount += 1;
+    } catch (error) {
+      failures.push({
+        key: recoveryObjectKey,
+        reason: error instanceof Error ? error.message : '未知错误',
+      });
+    }
+  }
+
+  return {
+    successCount,
+    failureCount: failures.length,
+    failures,
+  };
+};
+
 export const deleteObject = async (config: OSSConfig, objectKey: string) => {
   const client = createClient(config);
   await client.delete(objectKey);
+};
+
+export const deleteObjects = async (config: OSSConfig, objectKeys: string[]): Promise<BatchOperationResult> => {
+  if (!objectKeys.length) {
+    return { successCount: 0, failureCount: 0, failures: [] };
+  }
+
+  let successCount = 0;
+  const failures: Array<{ key: string; reason: string }> = [];
+
+  for (const objectKey of objectKeys) {
+    try {
+      await deleteObject(config, objectKey);
+      successCount += 1;
+    } catch (error) {
+      failures.push({
+        key: objectKey,
+        reason: error instanceof Error ? error.message : '未知错误',
+      });
+    }
+  }
+
+  return {
+    successCount,
+    failureCount: failures.length,
+    failures,
+  };
 };
 
 export const restoreObject = async (

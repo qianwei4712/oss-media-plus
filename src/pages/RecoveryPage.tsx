@@ -1,8 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArchiveRestore, FileAudio, FileImage, Film, FolderSearch, LoaderCircle, TriangleAlert } from 'lucide-react';
+import {
+  ArchiveRestore,
+  CheckSquare,
+  FileAudio,
+  FileImage,
+  Film,
+  FolderSearch,
+  LoaderCircle,
+  RotateCcw,
+  Trash2,
+  TriangleAlert,
+} from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 import { RecoveryPanel } from '../components/RecoveryPanel';
-import { listRecoveryItems, normalizeRecoveryDir } from '../oss';
+import { deleteObjects, listRecoveryItems, normalizeRecoveryDir, restoreRecoveryObjects } from '../oss';
 import { useAppStore } from '../store';
 import type { AppLayoutContext } from '../layouts/AppLayout';
 import type { MediaKind, RecoveryItem } from '../types';
@@ -43,6 +54,9 @@ export function RecoveryPage() {
   const [loading, setLoading] = useState(false);
   const [activeKind, setActiveKind] = useState<MediaKind | 'all'>('all');
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const [batchRunning, setBatchRunning] = useState(false);
+  const [batchSummary, setBatchSummary] = useState<{ tone: 'info' | 'warn'; message: string } | null>(null);
 
   const loadRecovery = async () => {
     const nextConfig = useAppStore.getState().config;
@@ -60,6 +74,7 @@ export function RecoveryPage() {
       setCurrent((previous) =>
         result.find((item) => item.recoveryObjectKey === previous?.recoveryObjectKey) ?? result[0] ?? null,
       );
+      setSelectedKeys((previous) => new Set(Array.from(previous).filter((key) => result.some((item) => item.recoveryObjectKey === key))));
     } catch (error) {
       const message = error instanceof Error ? error.message : '未知错误';
       setError(`加载回收站失败：${message}`);
@@ -81,6 +96,9 @@ export function RecoveryPage() {
     () => (activeKind === 'all' ? items : items.filter((item) => item.kind === activeKind)),
     [activeKind, items],
   );
+  const visibleKeys = filtered.map((item) => item.recoveryObjectKey);
+  const allVisibleSelected = visibleKeys.length > 0 && visibleKeys.every((key) => selectedKeys.has(key));
+  const selectedCount = selectedKeys.size;
 
   const handleRecovered = async () => {
     await Promise.all([loadRecovery(), loadMedia()]);
@@ -88,6 +106,85 @@ export function RecoveryPage() {
 
   const handleDeleted = async () => {
     await loadRecovery();
+  };
+
+  useEffect(() => {
+    setSelectedKeys((previous) => new Set(Array.from(previous).filter((key) => visibleKeys.includes(key))));
+  }, [activeKind, items]);
+
+  const toggleSelected = (key: string) => {
+    setSelectedKeys((previous) => {
+      const next = new Set(previous);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
+  const selectAllVisible = () => {
+    setSelectedKeys(new Set(visibleKeys));
+  };
+
+  const clearSelection = () => {
+    setSelectedKeys(new Set());
+  };
+
+  const buildBatchMessage = (actionLabel: string, successCount: number, failureCount: number, failureReason?: string) => {
+    if (failureCount === 0) {
+      return {
+        tone: 'info' as const,
+        message: `${actionLabel}完成：成功 ${successCount} 项。`,
+      };
+    }
+    return {
+      tone: 'warn' as const,
+      message: `${actionLabel}完成：成功 ${successCount} 项，失败 ${failureCount} 项。${failureReason ? ` 失败原因：${failureReason}` : ''}`,
+    };
+  };
+
+  const handleBatchRestore = async () => {
+    if (!config || selectedCount === 0) return;
+    if (!window.confirm(`确认恢复已选中的 ${selectedCount} 个对象吗？`)) {
+      return;
+    }
+
+    setBatchRunning(true);
+    setBatchSummary(null);
+    setError('');
+    try {
+      const result = await restoreRecoveryObjects(config, Array.from(selectedKeys));
+      setBatchSummary(buildBatchMessage('批量恢复', result.successCount, result.failureCount, result.failures[0]?.reason));
+      await Promise.all([loadRecovery(), loadMedia()]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '未知错误';
+      setError(`批量恢复失败：${message}`);
+    } finally {
+      setBatchRunning(false);
+    }
+  };
+
+  const handleBatchDelete = async () => {
+    if (!config || selectedCount === 0) return;
+    if (!window.confirm(`确认彻底删除已选中的 ${selectedCount} 个对象吗？此操作不可恢复。`)) {
+      return;
+    }
+
+    setBatchRunning(true);
+    setBatchSummary(null);
+    setError('');
+    try {
+      const result = await deleteObjects(config, Array.from(selectedKeys));
+      setBatchSummary(buildBatchMessage('批量删除', result.successCount, result.failureCount, result.failures[0]?.reason));
+      await loadRecovery();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '未知错误';
+      setError(`批量删除失败：${message}`);
+    } finally {
+      setBatchRunning(false);
+    }
   };
 
   return (
@@ -101,6 +198,29 @@ export function RecoveryPage() {
           <p className="section-desc">
             当前路径：{normalizeRecoveryDir(config?.recoveryPath) || 'recovery/'}
           </p>
+          <div className="batch-toolbar">
+            <div className="batch-toolbar-meta">
+              <CheckSquare size={16} />
+              <span>已选择 {selectedCount} 项</span>
+            </div>
+            <div className="batch-toolbar-actions">
+              <button type="button" className="button secondary" onClick={allVisibleSelected ? clearSelection : selectAllVisible} disabled={!visibleKeys.length || batchRunning}>
+                {allVisibleSelected ? '取消全选当前可见结果' : '全选当前可见结果'}
+              </button>
+              <button type="button" className="button secondary" onClick={clearSelection} disabled={!selectedCount || batchRunning}>
+                清空选择
+              </button>
+              <button type="button" className="button primary" onClick={() => void handleBatchRestore()} disabled={!selectedCount || batchRunning}>
+                <RotateCcw size={16} />
+                {batchRunning ? '处理中...' : '批量恢复'}
+              </button>
+              <button type="button" className="button danger" onClick={() => void handleBatchDelete()} disabled={!selectedCount || batchRunning}>
+                <Trash2 size={16} />
+                {batchRunning ? '处理中...' : '批量彻底删除'}
+              </button>
+            </div>
+          </div>
+          {batchSummary ? <div className={`status-banner ${batchSummary.tone}`}>{batchSummary.message}</div> : null}
           <div className="tabs">
             {tabs.map((tab) => (
               <button
@@ -119,12 +239,23 @@ export function RecoveryPage() {
               const hasImageError = imageErrors.has(item.recoveryObjectKey);
 
               return (
-                <button
+                <div
                   key={item.recoveryObjectKey}
-                  type="button"
-                  className={item.recoveryObjectKey === current?.recoveryObjectKey ? 'media-card selected' : 'media-card'}
-                  onClick={() => setCurrent(item)}
+                  className={item.recoveryObjectKey === current?.recoveryObjectKey ? 'media-card selected selectable-card' : 'media-card selectable-card'}
                 >
+                  <label className="select-toggle" onClick={(event) => event.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selectedKeys.has(item.recoveryObjectKey)}
+                      onChange={() => toggleSelected(item.recoveryObjectKey)}
+                    />
+                    <span>选择</span>
+                  </label>
+                  <button
+                    type="button"
+                    className="media-card-button"
+                    onClick={() => setCurrent(item)}
+                  >
                   <div className="media-thumb">
                     {item.kind === 'image' && !hasImageError ? (
                       <img
@@ -154,7 +285,8 @@ export function RecoveryPage() {
                       {item.kind.toUpperCase()} · {formatSize(item.size)} · {formatDeletedAt(item.deletedAt)}
                     </small>
                   </div>
-                </button>
+                  </button>
+                </div>
               );
             })}
           </div>

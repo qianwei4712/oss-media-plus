@@ -1,10 +1,15 @@
 import { create } from 'zustand';
-import type { FolderItem, MediaItem, OSSConfig, UploadTask } from './types';
+import type { FolderItem, MediaItem, MediaSort, OSSConfig, UploadTask } from './types';
 
 interface AppState {
   config: OSSConfig | null;
   currentDir: string;
   uploadDir: string;
+  searchQuery: string;
+  searchSort: MediaSort;
+  searchResults: MediaItem[];
+  searchCursor: number;
+  searchHasMore: boolean;
   folders: FolderItem[];
   items: MediaItem[];
   current: MediaItem | null;
@@ -14,6 +19,12 @@ interface AppState {
   setConfig: (config: OSSConfig) => void;
   setCurrentDir: (dir: string) => void;
   setUploadDir: (dir: string) => void;
+  setSearchQuery: (query: string) => void;
+  setSearchSort: (sort: MediaSort) => void;
+  setSearchResults: (items: MediaItem[]) => void;
+  setSearchCursor: (cursor: number) => void;
+  setSearchHasMore: (hasMore: boolean) => void;
+  clearSearchState: () => void;
   setFolders: (folders: FolderItem[]) => void;
   setItems: (items: MediaItem[]) => void;
   setCurrent: (item: MediaItem | null) => void;
@@ -52,6 +63,11 @@ export const useAppStore = create<AppState>((set) => ({
   config: readConfig(),
   currentDir: '',
   uploadDir: readUploadDir(),
+  searchQuery: '',
+  searchSort: 'name-asc',
+  searchResults: [],
+  searchCursor: 0,
+  searchHasMore: false,
   folders: [],
   items: [],
   current: null,
@@ -68,12 +84,26 @@ export const useAppStore = create<AppState>((set) => ({
     localStorage.setItem('oss-media-plus-upload-dir', normalized);
     set({ uploadDir: normalized });
   },
+  setSearchQuery: (query) => set({ searchQuery: query.trimStart(), current: null }),
+  setSearchSort: (sort) => set({ searchSort: sort, current: null }),
+  setSearchResults: (items) => set({ searchResults: items }),
+  setSearchCursor: (cursor) => set({ searchCursor: cursor }),
+  setSearchHasMore: (hasMore) => set({ searchHasMore: hasMore }),
+  clearSearchState: () =>
+    set({
+      searchQuery: '',
+      searchResults: [],
+      searchCursor: 0,
+      searchHasMore: false,
+      current: null,
+    }),
   setFolders: (folders) => set({ folders }),
   setItems: (items) => set({ items }),
   setCurrent: (item) => set({ current: item }),
   patchItem: (path, patch) =>
     set((state) => ({
       items: state.items.map((item) => (item.path === path ? { ...item, ...patch } : item)),
+      searchResults: state.searchResults.map((item) => (item.path === path ? { ...item, ...patch } : item)),
       current: state.current?.path === path ? { ...state.current, ...patch } : state.current,
     })),
   setLoading: (loading) => set({ loading }),

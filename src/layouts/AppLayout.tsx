@@ -4,13 +4,15 @@ import { useAppStore } from '../store';
 
 export interface AppLayoutContext {
   loadMedia: () => Promise<void>;
+  loadMoreMedia: () => void;
 }
 
 interface AppLayoutProps {
   loadMedia: () => Promise<void>;
+  loadMoreMedia: () => void;
 }
 
-export function AppLayout({ loadMedia }: AppLayoutProps) {
+export function AppLayout({ loadMedia, loadMoreMedia }: AppLayoutProps) {
   const config = useAppStore((state) => state.config);
   const loading = useAppStore((state) => state.loading);
   const error = useAppStore((state) => state.error);
@@ -48,7 +50,7 @@ export function AppLayout({ loadMedia }: AppLayoutProps) {
       </header>
 
       <div className="page-shell">
-        <Outlet context={{ loadMedia } satisfies AppLayoutContext} />
+        <Outlet context={{ loadMedia, loadMoreMedia } satisfies AppLayoutContext} />
       </div>
 
       {loading ? (

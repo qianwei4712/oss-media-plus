@@ -9,7 +9,7 @@ import type { AppLayoutContext } from '../layouts/AppLayout';
 import type { MediaKind } from '../types';
 
 export function LibraryPage() {
-  const { loadMedia } = useOutletContext<AppLayoutContext>();
+  const { loadMedia, loadMoreMedia } = useOutletContext<AppLayoutContext>();
   const config = useAppStore((state) => state.config);
   const items = useAppStore((state) => state.items);
   const folders = useAppStore((state) => state.folders);
@@ -17,10 +17,16 @@ export function LibraryPage() {
   const setCurrent = useAppStore((state) => state.setCurrent);
   const currentDir = useAppStore((state) => state.currentDir);
   const setCurrentDir = useAppStore((state) => state.setCurrentDir);
+  const searchQuery = useAppStore((state) => state.searchQuery);
+  const searchSort = useAppStore((state) => state.searchSort);
+  const searchHasMore = useAppStore((state) => state.searchHasMore);
+  const setSearchQuery = useAppStore((state) => state.setSearchQuery);
+  const setSearchSort = useAppStore((state) => state.setSearchSort);
   const setError = useAppStore((state) => state.setError);
   const [activeKind, setActiveKind] = useState<MediaKind | 'all'>('all');
   const [creating, setCreating] = useState(false);
   const [folderName, setFolderName] = useState('');
+  const isSearchMode = Boolean(searchQuery.trim());
 
   const crumbs = useMemo(() => {
     const parts = currentDir.split('/').filter(Boolean);
@@ -116,6 +122,13 @@ export function LibraryPage() {
           onKindChange={setActiveKind}
           onSelect={setCurrent}
           selectedPath={current?.path}
+          searchQuery={searchQuery}
+          searchSort={searchSort}
+          onSearchQueryChange={setSearchQuery}
+          onSearchSortChange={setSearchSort}
+          onLoadMore={loadMoreMedia}
+          searchHasMore={searchHasMore}
+          isSearchMode={isSearchMode}
         />
       </div>
       <PlayerPanel item={current} onMoved={loadMedia} onDeleted={loadMedia} />

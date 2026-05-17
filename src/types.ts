@@ -31,6 +31,8 @@ export interface RecoveryItem extends MediaItem {
   deletedAt: string;
 }
 
+export type MediaSort = 'name-asc' | 'name-desc';
+
 export type UploadStatus = 'pending' | 'uploading' | 'done' | 'error';
 
 export interface UploadTask {
@@ -41,4 +43,15 @@ export interface UploadTask {
   status: UploadStatus;
   progress: number;
   error?: string;
+}
+
+export interface BatchOperationFailure {
+  key: string;
+  reason: string;
+}
+
+export interface BatchOperationResult {
+  successCount: number;
+  failureCount: number;
+  failures: BatchOperationFailure[];
 }

@@ -1,6 +1,6 @@
-import { FileAudio, FileImage, Film, FolderSearch, LoaderCircle, TriangleAlert } from 'lucide-react';
+import { FileAudio, FileImage, Film, FolderSearch, LoaderCircle, Search, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
-import type { MediaItem, MediaKind } from '../types';
+import type { MediaItem, MediaKind, MediaSort } from '../types';
 
 interface MediaGridProps {
   items: MediaItem[];
@@ -8,6 +8,13 @@ interface MediaGridProps {
   onKindChange: (kind: MediaKind | 'all') => void;
   onSelect: (item: MediaItem) => void;
   selectedPath?: string;
+  searchQuery: string;
+  searchSort: MediaSort;
+  onSearchQueryChange: (query: string) => void;
+  onSearchSortChange: (sort: MediaSort) => void;
+  onLoadMore: () => void;
+  searchHasMore: boolean;
+  isSearchMode: boolean;
 }
 
 const tabs: Array<{ label: string; value: MediaKind | 'all' }> = [
@@ -37,6 +44,13 @@ export function MediaGrid({
   onKindChange,
   onSelect,
   selectedPath,
+  searchQuery,
+  searchSort,
+  onSearchQueryChange,
+  onSearchSortChange,
+  onLoadMore,
+  searchHasMore,
+  isSearchMode,
 }: MediaGridProps) {
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
   const [imageLoading, setImageLoading] = useState<Set<string>>(new Set());
@@ -60,6 +74,28 @@ export function MediaGrid({
         <FolderSearch size={18} />
         <h2>媒体列表</h2>
       </div>
+      <div className="library-toolbar">
+        <label className="search-field">
+          <Search size={16} />
+          <input
+            value={searchQuery}
+            onChange={(event) => onSearchQueryChange(event.target.value)}
+            placeholder="搜索整个媒体根目录中的文件名"
+          />
+        </label>
+        <label className="sort-field">
+          <span>排序</span>
+          <select
+            value={searchSort}
+            onChange={(event) => onSearchSortChange(event.target.value as MediaSort)}
+            disabled={!isSearchMode}
+          >
+            <option value="name-asc">名称升序</option>
+            <option value="name-desc">名称降序</option>
+          </select>
+        </label>
+      </div>
+      {isSearchMode ? <p className="section-desc">当前正在搜索整个媒体根目录，目录切换不会改变搜索范围。</p> : null}
       <div className="tabs">
         {tabs.map((tab) => (
           <button
@@ -123,7 +159,16 @@ export function MediaGrid({
         })}
       </div>
       {filtered.length === 0 ? (
-        <div className="empty-state">当前目录下没有符合筛选条件的媒体文件。</div>
+        <div className="empty-state">
+          {isSearchMode ? '没有匹配当前搜索条件的媒体文件。' : '当前目录下没有符合筛选条件的媒体文件。'}
+        </div>
+      ) : null}
+      {isSearchMode && searchHasMore ? (
+        <div className="load-more-row">
+          <button type="button" className="button secondary" onClick={onLoadMore}>
+            加载更多
+          </button>
+        </div>
       ) : null}
     </section>
   );
