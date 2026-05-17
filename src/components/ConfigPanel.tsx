@@ -67,13 +67,14 @@ export function ConfigPanel({ onConnected }: ConfigPanelProps) {
 
   return (
     <section className="panel">
-      <div className="section-title">
-        <Cloud size={18} />
-        <h2>OSS 配置</h2>
+      <div className="section-head">
+        <div className="section-title">
+          <Cloud size={18} />
+          <h2>OSS 配置</h2>
+        </div>
+        <p className="section-desc">连接信息保存在当前浏览器本地，保存后可直接测试并加载媒体数据。</p>
       </div>
-      <p className="section-desc">
-        配置会保存在当前浏览器本地。请确保 Bucket 已正确设置 CORS，允许当前域名访问。
-      </p>
+
       <div className="form-grid">
         <label>
           Region
@@ -125,6 +126,7 @@ export function ConfigPanel({ onConnected }: ConfigPanelProps) {
           />
         </label>
       </div>
+
       <div className="button-row">
         <button type="button" className="button secondary" onClick={saveConfig}>
           <Save size={16} />
@@ -135,9 +137,10 @@ export function ConfigPanel({ onConnected }: ConfigPanelProps) {
           {testing ? '连接中...' : '测试并加载媒体'}
         </button>
       </div>
+
       <div className="hint-card">
         <KeyRound size={16} />
-        <span>需要开启 CORS，并允许 `GET/HEAD`，暴露 `ETag` 等常见响应头。回收站路径按 Bucket 根目录解析。</span>
+        <span>需要开启 CORS，并允许 `GET/HEAD`，同时暴露 `ETag` 等常见响应头。回收站路径按 Bucket 根目录解析。</span>
       </div>
     </section>
   );

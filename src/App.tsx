@@ -1,12 +1,12 @@
 import { useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppLayout } from './layouts/AppLayout';
+import { listDirectory, searchMediaObjects } from './oss';
 import { LibraryPage } from './pages/LibraryPage';
 import { RecoveryPage } from './pages/RecoveryPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { StatsPage } from './pages/StatsPage';
 import { UploadPage } from './pages/UploadPage';
-import { listDirectory, searchMediaObjects } from './oss';
 import { useAppStore } from './store';
 
 const SEARCH_PAGE_SIZE = 24;
@@ -38,7 +38,11 @@ function App() {
     }
   };
 
-  const loadSearchState = async (nextConfig: NonNullable<typeof config>, nextSearchQuery: string, nextSearchSort: typeof searchSort) => {
+  const loadSearchState = async (
+    nextConfig: NonNullable<typeof config>,
+    nextSearchQuery: string,
+    nextSearchSort: typeof searchSort,
+  ) => {
     const previousCurrentPath = useAppStore.getState().current?.path;
     const result = await searchMediaObjects(nextConfig, {
       query: nextSearchQuery,

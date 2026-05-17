@@ -176,40 +176,43 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
     }
   };
 
-  const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files?.length) {
-      handleFiles(e.target.files);
-      e.target.value = '';
+  const onInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files?.length) {
+      handleFiles(event.target.files);
+      event.target.value = '';
     }
   };
 
   const onDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
+    (event: React.DragEvent) => {
+      event.preventDefault();
       setDragging(false);
-      if (e.dataTransfer.files?.length) {
-        handleFiles(e.dataTransfer.files);
+      if (event.dataTransfer.files?.length) {
+        handleFiles(event.dataTransfer.files);
       }
     },
     [handleFiles],
   );
 
-  const onDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
+  const onDragOver = (event: React.DragEvent) => {
+    event.preventDefault();
     setDragging(true);
   };
 
   const onDragLeave = () => setDragging(false);
 
-  const hasActive = uploads.some((t) => t.status === 'uploading');
+  const hasActive = uploads.some((task) => task.status === 'uploading');
 
   return (
     <section className="panel">
-      <div className="section-title">
-        <CloudUpload size={18} />
-        <h2>上传文件</h2>
+      <div className="section-head">
+        <div className="section-title">
+          <CloudUpload size={18} />
+          <h2>上传文件</h2>
+        </div>
+        <p className="section-desc">先选目标目录，再拖拽或选择文件。上传过程会保留在当前页面中。</p>
       </div>
-      <p className="section-desc">先选好上传目录，再选择或拖拽图片、音频、视频文件。</p>
+
       <div className="upload-target-card">
         <div className="upload-target-header">
           <div className="move-dialog-title">
@@ -220,6 +223,7 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
             {`${normalizeRoot(config?.rootPath)}${normalizeDir(effectiveUploadDir)}` || '/'}
           </div>
         </div>
+
         <div className="breadcrumbs breadcrumbs-compact">
           {pickerCrumbs.map((crumb, index) => (
             <div key={crumb.path || 'root'} className="breadcrumb-item">
@@ -235,6 +239,7 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
             </div>
           ))}
         </div>
+
         <div className="folder-grid folder-grid-compact">
           {pickerLoading ? (
             <div className="empty-state empty-state-sm">
@@ -243,26 +248,27 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
             </div>
           ) : pickerFolders.length ? (
             pickerFolders.map((folder) => (
-                <button
-                  key={folder.path}
-                  type="button"
-                  className="folder-card"
-                  onClick={() => void enterPickerDir(folder.path)}
-                  disabled={creatingFolder}
-                >
-                  <Folder size={18} />
-                  <span>{folder.name}</span>
-                </button>
-              ))
+              <button
+                key={folder.path}
+                type="button"
+                className="folder-card"
+                onClick={() => void enterPickerDir(folder.path)}
+                disabled={creatingFolder}
+              >
+                <Folder size={18} />
+                <span>{folder.name}</span>
+              </button>
+            ))
           ) : (
             <div className="empty-state empty-state-sm">当前目录下没有子文件夹。</div>
           )}
         </div>
+
         <div className="folder-create-row">
           <input
             value={folderName}
             onChange={(event) => setFolderName(event.target.value)}
-            placeholder="新建文件夹名称"
+            placeholder="输入新文件夹名称"
             disabled={pickerLoading || creatingFolder}
           />
           <button
@@ -276,6 +282,7 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
           </button>
         </div>
       </div>
+
       <div
         className={`upload-drop-zone${dragging ? ' dragging' : ''}`}
         onDrop={onDrop}
@@ -284,7 +291,7 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
         onClick={() => inputRef.current?.click()}
       >
         <FileUp size={32} />
-        <span>点击选择文件或拖拽到此处</span>
+        <span>点击选择文件，或直接拖拽到这里</span>
         <small>支持图片、音频、视频格式</small>
         <input
           ref={inputRef}
@@ -313,13 +320,12 @@ export function UploadPanel({ onUploaded }: UploadPanelProps) {
                 </div>
               ) : null}
               {task.status === 'done' ? <span className="upload-badge done">完成</span> : null}
-              {task.status === 'error' ? (
-                <span className="upload-badge error">{task.error ?? '失败'}</span>
-              ) : null}
+              {task.status === 'error' ? <span className="upload-badge error">{task.error ?? '失败'}</span> : null}
             </div>
           ))}
+
           <div className="upload-actions">
-            {!hasActive && uploads.some((t) => t.status === 'done') ? (
+            {!hasActive && uploads.some((task) => task.status === 'done') ? (
               <button type="button" className="button primary" onClick={() => void onUploaded()}>
                 <CloudUpload size={16} />
                 刷新媒体列表

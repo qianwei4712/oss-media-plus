@@ -70,10 +70,14 @@ export function MediaGrid({
 
   return (
     <section className="panel">
-      <div className="section-title">
-        <FolderSearch size={18} />
-        <h2>媒体列表</h2>
+      <div className="section-head">
+        <div className="section-title">
+          <FolderSearch size={18} />
+          <h2>媒体列表</h2>
+        </div>
+        <p className="section-desc">支持全局搜索、类型筛选和分页加载，点击卡片即可在右侧预览。</p>
       </div>
+
       <div className="library-toolbar">
         <label className="search-field">
           <Search size={16} />
@@ -95,7 +99,9 @@ export function MediaGrid({
           </select>
         </label>
       </div>
-      {isSearchMode ? <p className="section-desc">当前正在搜索整个媒体根目录，目录切换不会改变搜索范围。</p> : null}
+
+      {isSearchMode ? <p className="section-note">当前正在搜索整个媒体根目录，切换目录不会改变搜索范围。</p> : null}
+
       <div className="tabs">
         {tabs.map((tab) => (
           <button
@@ -108,6 +114,7 @@ export function MediaGrid({
           </button>
         ))}
       </div>
+
       <div className="media-grid">
         {filtered.map((item) => {
           const Icon = iconMap[item.kind];
@@ -158,11 +165,13 @@ export function MediaGrid({
           );
         })}
       </div>
+
       {filtered.length === 0 ? (
         <div className="empty-state">
           {isSearchMode ? '没有匹配当前搜索条件的媒体文件。' : '当前目录下没有符合筛选条件的媒体文件。'}
         </div>
       ) : null}
+
       {isSearchMode && searchHasMore ? (
         <div className="load-more-row">
           <button type="button" className="button secondary" onClick={onLoadMore}>

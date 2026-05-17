@@ -103,7 +103,6 @@ export function PlayerPanel({ item, onMoved, onDeleted }: PlayerPanelProps) {
     };
 
     document.addEventListener('fullscreenchange', onFullscreenChange);
-
     return () => {
       document.removeEventListener('fullscreenchange', onFullscreenChange);
     };
@@ -143,8 +142,8 @@ export function PlayerPanel({ item, onMoved, onDeleted }: PlayerPanelProps) {
         await element.play();
         setIsPlaying(true);
         setError('');
-      } catch (err) {
-        const message = err instanceof Error ? err.message : '未知错误';
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '未知错误';
         setError(`播放失败：${message}`);
       }
       return;
@@ -164,8 +163,7 @@ export function PlayerPanel({ item, onMoved, onDeleted }: PlayerPanelProps) {
 
   const refreshSignedUrl = () => {
     if (!config || !item) return;
-    const url = signObjectUrl(config, item.path);
-    patchItem(item.path, { url });
+    patchItem(item.path, { url: signObjectUrl(config, item.path) });
     setError('');
   };
 
@@ -173,7 +171,7 @@ export function PlayerPanel({ item, onMoved, onDeleted }: PlayerPanelProps) {
     if (!item) return;
     const opened = window.open(item.url, '_blank', 'noopener,noreferrer');
     if (!opened) {
-      setError('新窗口被浏览器拦截，请允许弹出窗口后重试。');
+      setError('新窗口被浏览器拦截，请允许弹窗后重试。');
       return;
     }
     setError('');
@@ -202,24 +200,21 @@ export function PlayerPanel({ item, onMoved, onDeleted }: PlayerPanelProps) {
       setError('请先配置 OSS 连接。');
       return;
     }
-    if (!item) return;
-    if (!needsRestore) return;
+    if (!item || !needsRestore) return;
 
     setRestoring(true);
     setRestoreHint('');
     setError('');
     try {
       const result = await restoreObject(config, item.path, item.storageClass);
-      const status = (result as any)?.res?.status;
+      const status = (result as { res?: { status?: number } })?.res?.status;
       if (status === 200) {
-        setRestoreHint('对象已处于可读状态，可直接重试预览或播放。');
-      } else if (status === 202) {
-        setRestoreHint('已发起解冻，请稍后重试预览或播放。');
+        setRestoreHint('对象已处于可读状态，可以直接重试预览或播放。');
       } else {
         setRestoreHint('已发起解冻，请稍后重试预览或播放。');
       }
     } catch (error) {
-      const status = (error as any)?.status;
+      const status = (error as { status?: number })?.status;
       if (status === 409) {
         setRestoreHint('对象正在解冻中，请稍后重试预览或播放。');
       } else {
@@ -236,6 +231,7 @@ export function PlayerPanel({ item, onMoved, onDeleted }: PlayerPanelProps) {
       setError('请先配置 OSS 连接。');
       return;
     }
+
     setError('');
     setMoveOpen(true);
     setTargetDir(currentDir);
@@ -313,24 +309,28 @@ export function PlayerPanel({ item, onMoved, onDeleted }: PlayerPanelProps) {
   if (!item) {
     return (
       <section className="panel player-panel empty-player">
-        <h2>播放器</h2>
-        <p>从左侧选择图片、音频或视频后，这里会显示预览和播放控制。</p>
+        <h2>预览面板</h2>
+        <p>从左侧选择图片、音频或视频后，这里会显示预览与操作控制。</p>
       </section>
     );
   }
 
   return (
     <section className="panel player-panel">
-      <div className="section-title">
-        <h2>预览与播放</h2>
+      <div className="section-head">
+        <div className="section-title">
+          <h2>预览与操作</h2>
+        </div>
       </div>
+
       <div className="player-header">
         <strong>{item.name}</strong>
         <span>{item.path}</span>
       </div>
+
       {needsRestore ? (
         <div className="restore-card">
-          <strong>对象存储类型为 {item.storageClass}，需要解冻后才能访问</strong>
+          <strong>对象存储类型为 {item.storageClass}，需要先解冻后才能访问。</strong>
           <div className="restore-actions">
             <button type="button" className="button primary" onClick={() => void submitRestore()} disabled={restoring}>
               {restoring ? '解冻中...' : '发起解冻'}
@@ -342,6 +342,7 @@ export function PlayerPanel({ item, onMoved, onDeleted }: PlayerPanelProps) {
           {restoreHint ? <div className="restore-hint">{restoreHint}</div> : null}
         </div>
       ) : null}
+
       {item.kind === 'image' ? (
         <div ref={previewRef} className="preview-frame image-preview">
           <img
@@ -351,6 +352,7 @@ export function PlayerPanel({ item, onMoved, onDeleted }: PlayerPanelProps) {
           />
         </div>
       ) : null}
+
       <div className="player-actions">
         {item.kind === 'image' || item.kind === 'video' ? (
           <>
@@ -368,16 +370,12 @@ export function PlayerPanel({ item, onMoved, onDeleted }: PlayerPanelProps) {
           <ArrowRightLeft size={16} />
           移动到...
         </button>
-        <button
-          type="button"
-          className="button danger"
-          onClick={() => void submitDelete()}
-          disabled={!config || moving || deleting}
-        >
+        <button type="button" className="button danger" onClick={() => void submitDelete()} disabled={!config || moving || deleting}>
           <Trash2 size={16} />
           {deleting ? '删除中...' : '删除到回收站'}
         </button>
       </div>
+
       {moveOpen ? (
         <div className="move-dialog">
           <div className="move-dialog-header">
@@ -441,6 +439,7 @@ export function PlayerPanel({ item, onMoved, onDeleted }: PlayerPanelProps) {
           </div>
         </div>
       ) : null}
+
       {item.kind === 'audio' ? (
         <div className="audio-shell">
           <audio
@@ -452,6 +451,7 @@ export function PlayerPanel({ item, onMoved, onDeleted }: PlayerPanelProps) {
           <div className="audio-art">AUDIO</div>
         </div>
       ) : null}
+
       {item.kind === 'video' ? (
         <div ref={previewRef} className="preview-frame video-shell">
           <video
@@ -464,10 +464,11 @@ export function PlayerPanel({ item, onMoved, onDeleted }: PlayerPanelProps) {
           />
         </div>
       ) : null}
+
       {item.kind !== 'image' ? (
         <div className="player-controls">
           <div className="transport-row">
-            <button type="button" className="icon-button" onClick={togglePlay}>
+            <button type="button" className="icon-button" onClick={() => void togglePlay()}>
               {isPlaying ? <Pause size={18} /> : <Play size={18} />}
             </button>
             <div className="timeline">

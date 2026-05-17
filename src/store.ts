@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import type { FolderItem, MediaItem, MediaSort, OSSConfig, UploadTask } from './types';
 
+export type ThemeMode = 'light' | 'dark';
+
 interface AppState {
   config: OSSConfig | null;
   currentDir: string;
@@ -16,6 +18,7 @@ interface AppState {
   loading: boolean;
   error: string;
   uploads: UploadTask[];
+  theme: ThemeMode;
   setConfig: (config: OSSConfig) => void;
   setCurrentDir: (dir: string) => void;
   setUploadDir: (dir: string) => void;
@@ -34,6 +37,7 @@ interface AppState {
   addUploads: (tasks: UploadTask[]) => void;
   updateUpload: (id: string, patch: Partial<UploadTask>) => void;
   clearDoneUploads: () => void;
+  setTheme: (theme: ThemeMode) => void;
 }
 
 const normalizeDir = (value: string) => {
@@ -59,6 +63,15 @@ const readUploadDir = () => {
   }
 };
 
+const readTheme = (): ThemeMode => {
+  try {
+    const raw = localStorage.getItem('oss-media-plus-theme');
+    return raw === 'dark' ? 'dark' : 'light';
+  } catch {
+    return 'light';
+  }
+};
+
 export const useAppStore = create<AppState>((set) => ({
   config: readConfig(),
   currentDir: '',
@@ -74,6 +87,7 @@ export const useAppStore = create<AppState>((set) => ({
   loading: false,
   error: '',
   uploads: [],
+  theme: readTheme(),
   setConfig: (config) => {
     localStorage.setItem('oss-media-plus-config', JSON.stringify(config));
     set({ config });
@@ -111,8 +125,12 @@ export const useAppStore = create<AppState>((set) => ({
   addUploads: (tasks) => set((state) => ({ uploads: [...state.uploads, ...tasks] })),
   updateUpload: (id, patch) =>
     set((state) => ({
-      uploads: state.uploads.map((t) => (t.id === id ? { ...t, ...patch } : t)),
+      uploads: state.uploads.map((task) => (task.id === id ? { ...task, ...patch } : task)),
     })),
   clearDoneUploads: () =>
-    set((state) => ({ uploads: state.uploads.filter((t) => t.status !== 'done' && t.status !== 'error') })),
+    set((state) => ({ uploads: state.uploads.filter((task) => task.status !== 'done' && task.status !== 'error') })),
+  setTheme: (theme) => {
+    localStorage.setItem('oss-media-plus-theme', theme);
+    set({ theme });
+  },
 }));

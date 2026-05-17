@@ -108,7 +108,7 @@ export function RecoveryPanel({ item, onRestored, onDeleted }: RecoveryPanelProp
     if (!item) return;
     const opened = window.open(mediaUrl, '_blank', 'noopener,noreferrer');
     if (!opened) {
-      setError('新窗口被浏览器拦截，请允许弹出窗口后重试。');
+      setError('新窗口被浏览器拦截，请允许弹窗后重试。');
       return;
     }
     setError('');
@@ -144,14 +144,14 @@ export function RecoveryPanel({ item, onRestored, onDeleted }: RecoveryPanelProp
     setError('');
     try {
       const result = await restoreObject(config, item.recoveryObjectKey, item.storageClass);
-      const status = (result as any)?.res?.status;
+      const status = (result as { res?: { status?: number } })?.res?.status;
       if (status === 200) {
-        setRestoreHint('对象已处于可读状态，可直接重试预览或播放。');
+        setRestoreHint('对象已处于可读状态，可以直接重试预览或播放。');
       } else {
         setRestoreHint('已发起解冻，请稍后重试预览或播放。');
       }
     } catch (error) {
-      const status = (error as any)?.status;
+      const status = (error as { status?: number })?.status;
       if (status === 409) {
         setRestoreHint('对象正在解冻中，请稍后重试预览或播放。');
       } else {
@@ -248,17 +248,21 @@ export function RecoveryPanel({ item, onRestored, onDeleted }: RecoveryPanelProp
 
   return (
     <section className="panel player-panel">
-      <div className="section-title">
-        <h2>回收站预览</h2>
+      <div className="section-head">
+        <div className="section-title">
+          <h2>回收站预览</h2>
+        </div>
       </div>
+
       <div className="player-header">
         <strong>{item.name}</strong>
         <span>原路径：{item.originalPath}</span>
         <span>删除时间：{formatDeletedAt(item.deletedAt)}</span>
       </div>
+
       {needsRestore ? (
         <div className="restore-card">
-          <strong>对象存储类型为 {item.storageClass}，需要解冻后才能访问</strong>
+          <strong>对象存储类型为 {item.storageClass}，需要先解冻后才能访问。</strong>
           <div className="restore-actions">
             <button type="button" className="button primary" onClick={() => void submitRestoreSource()} disabled={restoringSource}>
               {restoringSource ? '解冻中...' : '发起解冻'}
@@ -270,6 +274,7 @@ export function RecoveryPanel({ item, onRestored, onDeleted }: RecoveryPanelProp
           {restoreHint ? <div className="restore-hint">{restoreHint}</div> : null}
         </div>
       ) : null}
+
       {item.kind === 'image' ? (
         <div ref={previewRef} className="preview-frame image-preview">
           <img
@@ -279,8 +284,9 @@ export function RecoveryPanel({ item, onRestored, onDeleted }: RecoveryPanelProp
           />
         </div>
       ) : null}
+
       <div className="player-actions">
-        {(item.kind === 'image' || item.kind === 'video') ? (
+        {item.kind === 'image' || item.kind === 'video' ? (
           <>
             <button type="button" className="button secondary" onClick={() => void enterFullscreen()}>
               <Maximize2 size={16} />
@@ -292,25 +298,16 @@ export function RecoveryPanel({ item, onRestored, onDeleted }: RecoveryPanelProp
             </button>
           </>
         ) : null}
-        <button
-          type="button"
-          className="button primary"
-          onClick={() => void submitRestoreItem()}
-          disabled={restoringItem || deletingItem}
-        >
+        <button type="button" className="button primary" onClick={() => void submitRestoreItem()} disabled={restoringItem || deletingItem}>
           <RotateCcw size={16} />
           {restoringItem ? '恢复中...' : '恢复到原位置'}
         </button>
-        <button
-          type="button"
-          className="button danger"
-          onClick={() => void submitPermanentDelete()}
-          disabled={restoringItem || deletingItem}
-        >
+        <button type="button" className="button danger" onClick={() => void submitPermanentDelete()} disabled={restoringItem || deletingItem}>
           <Trash2 size={16} />
           {deletingItem ? '删除中...' : '彻底删除'}
         </button>
       </div>
+
       {item.kind === 'audio' ? (
         <div className="audio-shell">
           <audio
@@ -322,6 +319,7 @@ export function RecoveryPanel({ item, onRestored, onDeleted }: RecoveryPanelProp
           <div className="audio-art">AUDIO</div>
         </div>
       ) : null}
+
       {item.kind === 'video' ? (
         <div ref={previewRef} className="preview-frame video-shell">
           <video
@@ -334,6 +332,7 @@ export function RecoveryPanel({ item, onRestored, onDeleted }: RecoveryPanelProp
           />
         </div>
       ) : null}
+
       {item.kind !== 'image' ? (
         <div className="player-controls">
           <div className="transport-row">

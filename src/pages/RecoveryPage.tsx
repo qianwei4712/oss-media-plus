@@ -13,9 +13,9 @@ import {
 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 import { RecoveryPanel } from '../components/RecoveryPanel';
+import type { AppLayoutContext } from '../layouts/AppLayout';
 import { deleteObjects, listRecoveryItems, normalizeRecoveryDir, restoreRecoveryObjects } from '../oss';
 import { useAppStore } from '../store';
-import type { AppLayoutContext } from '../layouts/AppLayout';
 import type { MediaKind, RecoveryItem } from '../types';
 
 const tabs: Array<{ label: string; value: MediaKind | 'all' }> = [
@@ -71,9 +71,7 @@ export function RecoveryPage() {
     try {
       const result = await listRecoveryItems(nextConfig);
       setItems(result);
-      setCurrent((previous) =>
-        result.find((item) => item.recoveryObjectKey === previous?.recoveryObjectKey) ?? result[0] ?? null,
-      );
+      setCurrent((previous) => result.find((item) => item.recoveryObjectKey === previous?.recoveryObjectKey) ?? result[0] ?? null);
       setSelectedKeys((previous) => new Set(Array.from(previous).filter((key) => result.some((item) => item.recoveryObjectKey === key))));
     } catch (error) {
       const message = error instanceof Error ? error.message : '未知错误';
@@ -96,6 +94,7 @@ export function RecoveryPage() {
     () => (activeKind === 'all' ? items : items.filter((item) => item.kind === activeKind)),
     [activeKind, items],
   );
+
   const visibleKeys = filtered.map((item) => item.recoveryObjectKey);
   const allVisibleSelected = visibleKeys.length > 0 && visibleKeys.every((key) => selectedKeys.has(key));
   const selectedCount = selectedKeys.size;
@@ -139,6 +138,7 @@ export function RecoveryPage() {
         message: `${actionLabel}完成：成功 ${successCount} 项。`,
       };
     }
+
     return {
       tone: 'warn' as const,
       message: `${actionLabel}完成：成功 ${successCount} 项，失败 ${failureCount} 项。${failureReason ? ` 失败原因：${failureReason}` : ''}`,
@@ -191,21 +191,27 @@ export function RecoveryPage() {
     <main className="content-grid">
       <div className="left-column">
         <section className="panel">
-          <div className="section-title">
-            <ArchiveRestore size={18} />
-            <h2>回收站</h2>
+          <div className="section-head">
+            <div className="section-title">
+              <ArchiveRestore size={18} />
+              <h2>回收站</h2>
+            </div>
+            <p className="section-desc">当前路径：{normalizeRecoveryDir(config?.recoveryPath) || 'recovery/'}</p>
           </div>
-          <p className="section-desc">
-            当前路径：{normalizeRecoveryDir(config?.recoveryPath) || 'recovery/'}
-          </p>
+
           <div className="batch-toolbar">
             <div className="batch-toolbar-meta">
               <CheckSquare size={16} />
               <span>已选择 {selectedCount} 项</span>
             </div>
             <div className="batch-toolbar-actions">
-              <button type="button" className="button secondary" onClick={allVisibleSelected ? clearSelection : selectAllVisible} disabled={!visibleKeys.length || batchRunning}>
-                {allVisibleSelected ? '取消全选当前可见结果' : '全选当前可见结果'}
+              <button
+                type="button"
+                className="button secondary"
+                onClick={allVisibleSelected ? clearSelection : selectAllVisible}
+                disabled={!visibleKeys.length || batchRunning}
+              >
+                {allVisibleSelected ? '取消全选当前结果' : '全选当前结果'}
               </button>
               <button type="button" className="button secondary" onClick={clearSelection} disabled={!selectedCount || batchRunning}>
                 清空选择
@@ -220,7 +226,9 @@ export function RecoveryPage() {
               </button>
             </div>
           </div>
+
           {batchSummary ? <div className={`status-banner ${batchSummary.tone}`}>{batchSummary.message}</div> : null}
+
           <div className="tabs">
             {tabs.map((tab) => (
               <button
@@ -233,6 +241,7 @@ export function RecoveryPage() {
               </button>
             ))}
           </div>
+
           <div className="media-grid">
             {filtered.map((item) => {
               const Icon = iconMap[item.kind];
@@ -251,56 +260,56 @@ export function RecoveryPage() {
                     />
                     <span>选择</span>
                   </label>
-                  <button
-                    type="button"
-                    className="media-card-button"
-                    onClick={() => setCurrent(item)}
-                  >
-                  <div className="media-thumb">
-                    {item.kind === 'image' && !hasImageError ? (
-                      <img
-                        src={item.url}
-                        alt={item.name}
-                        loading="lazy"
-                        onError={() =>
-                          setImageErrors((prev) => {
-                            const next = new Set(prev);
-                            next.add(item.recoveryObjectKey);
-                            return next;
-                          })
-                        }
-                      />
-                    ) : item.kind === 'image' ? (
-                      <div className="image-error">
-                        <TriangleAlert size={24} />
-                      </div>
-                    ) : (
-                      <Icon size={28} />
-                    )}
-                  </div>
-                  <div className="media-meta">
-                    <strong>{item.name}</strong>
-                    <span>{item.originalPath}</span>
-                    <small>
-                      {item.kind.toUpperCase()} · {formatSize(item.size)} · {formatDeletedAt(item.deletedAt)}
-                    </small>
-                  </div>
+
+                  <button type="button" className="media-card-button" onClick={() => setCurrent(item)}>
+                    <div className="media-thumb">
+                      {item.kind === 'image' && !hasImageError ? (
+                        <img
+                          src={item.url}
+                          alt={item.name}
+                          loading="lazy"
+                          onError={() =>
+                            setImageErrors((previous) => {
+                              const next = new Set(previous);
+                              next.add(item.recoveryObjectKey);
+                              return next;
+                            })
+                          }
+                        />
+                      ) : item.kind === 'image' ? (
+                        <div className="image-error">
+                          <TriangleAlert size={24} />
+                        </div>
+                      ) : (
+                        <Icon size={28} />
+                      )}
+                    </div>
+                    <div className="media-meta">
+                      <strong>{item.name}</strong>
+                      <span>{item.originalPath}</span>
+                      <small>
+                        {item.kind.toUpperCase()} · {formatSize(item.size)} · {formatDeletedAt(item.deletedAt)}
+                      </small>
+                    </div>
                   </button>
                 </div>
               );
             })}
           </div>
+
           {loading ? (
             <div className="empty-state">
               <LoaderCircle size={20} className="spin" />
               <span>正在加载回收站...</span>
             </div>
           ) : null}
+
           {!loading && filtered.length === 0 ? (
             <div className="empty-state">回收站里没有符合筛选条件的媒体文件。</div>
           ) : null}
         </section>
       </div>
+
       <RecoveryPanel item={current} onRestored={handleRecovered} onDeleted={handleDeleted} />
     </main>
   );

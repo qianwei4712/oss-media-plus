@@ -3,9 +3,9 @@ import { useMemo, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { MediaGrid } from '../components/MediaGrid';
 import { PlayerPanel } from '../components/PlayerPanel';
-import { useAppStore } from '../store';
-import { createFolder } from '../oss';
 import type { AppLayoutContext } from '../layouts/AppLayout';
+import { createFolder } from '../oss';
+import { useAppStore } from '../store';
 import type { MediaKind } from '../types';
 
 export function LibraryPage() {
@@ -67,10 +67,14 @@ export function LibraryPage() {
     <main className="content-grid">
       <div className="left-column">
         <section className="panel">
-          <div className="section-title">
-            <Folder size={18} />
-            <h2>目录</h2>
+          <div className="section-head">
+            <div className="section-title">
+              <Folder size={18} />
+              <h2>目录</h2>
+            </div>
+            <p className="section-desc">先切目录，再看文件和预览，常用操作都保持在同一屏内。</p>
           </div>
+
           <div className="breadcrumbs">
             {crumbs.map((crumb, index) => (
               <div key={crumb.path || 'root'} className="breadcrumb-item">
@@ -86,6 +90,7 @@ export function LibraryPage() {
               </div>
             ))}
           </div>
+
           <div className="folder-grid">
             {folders.length ? (
               folders.map((folder) => (
@@ -103,11 +108,12 @@ export function LibraryPage() {
               <div className="empty-state empty-state-sm">当前目录下没有子文件夹。</div>
             )}
           </div>
+
           <div className="folder-create-row">
             <input
               value={folderName}
               onChange={(event) => setFolderName(event.target.value)}
-              placeholder="新建文件夹名称"
+              placeholder="输入新文件夹名称"
               disabled={creating}
             />
             <button type="button" className="button secondary" onClick={() => void handleCreateFolder()} disabled={creating}>
@@ -116,6 +122,7 @@ export function LibraryPage() {
             </button>
           </div>
         </section>
+
         <MediaGrid
           items={items}
           activeKind={activeKind}
@@ -131,6 +138,7 @@ export function LibraryPage() {
           isSearchMode={isSearchMode}
         />
       </div>
+
       <PlayerPanel item={current} onMoved={loadMedia} onDeleted={loadMedia} />
     </main>
   );
