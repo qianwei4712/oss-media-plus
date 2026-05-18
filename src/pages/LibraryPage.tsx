@@ -113,7 +113,6 @@ export function LibraryPage() {
               className="folder-card"
               onClick={() => {
                 setCurrentDir(folder.path);
-                if (isMobile) setDirectoryOpen(false);
               }}
             >
               <Folder size={18} />
