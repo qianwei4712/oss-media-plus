@@ -864,6 +864,25 @@ input[type="checkbox"] {
   min-width: 0;
 }
 
+.media-card-image {
+  display: grid;
+  gap: 0;
+  padding: 10px;
+}
+
+.media-card-image .media-thumb {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+}
+
+.media-card-image .card-state-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+}
+
 .selectable-card {
   display: grid;
   gap: 10px;

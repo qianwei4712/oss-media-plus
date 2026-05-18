@@ -151,20 +151,12 @@ export function MediaGrid({
             const Icon = iconMap[item.kind];
             const hasImageError = imageErrors.has(item.path);
             const isLoading = imageLoading.has(item.path);
+            const className = item.path === selectedPath ? `media-card media-card-${item.kind} selected` : `media-card media-card-${item.kind}`;
 
             return (
-            <button
-              key={item.path}
-              type="button"
-              className={
-                item.path === selectedPath
-                  ? `media-card media-card-${item.kind} selected`
-                  : `media-card media-card-${item.kind}`
-              }
-              onClick={() => onSelect(item)}
-            >
-              {item.path === selectedPath ? <span className="card-state-badge">预览中</span> : null}
-              <div className="media-thumb">
+              <button key={item.path} type="button" className={className} onClick={() => onSelect(item)}>
+                {item.path === selectedPath ? <span className="card-state-badge">预览中</span> : null}
+                <div className="media-thumb">
                   {item.kind === 'image' ? (
                     <div className="image-container">
                       {isLoading ? (
@@ -189,14 +181,17 @@ export function MediaGrid({
                     <Icon size={28} />
                   )}
                 </div>
-                <div className="media-meta">
-                  <strong>{item.name}</strong>
-                  <span>{item.path}</span>
-                  <small>
-                    {item.kind.toUpperCase()} · {formatSize(item.size)}
-                    {item.storageClass && item.storageClass !== 'Standard' ? ` · ${item.storageClass}` : ''}
-                  </small>
-                </div>
+
+                {item.kind === 'image' ? null : (
+                  <div className="media-meta">
+                    <strong>{item.name}</strong>
+                    <span>{item.path}</span>
+                    <small>
+                      {item.kind.toUpperCase()} · {formatSize(item.size)}
+                      {item.storageClass && item.storageClass !== 'Standard' ? ` · ${item.storageClass}` : ''}
+                    </small>
+                  </div>
+                )}
               </button>
             );
           })}
