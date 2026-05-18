@@ -156,7 +156,11 @@ export function MediaGrid({
             <button
               key={item.path}
               type="button"
-              className={item.path === selectedPath ? 'media-card selected' : 'media-card'}
+              className={
+                item.path === selectedPath
+                  ? `media-card media-card-${item.kind} selected`
+                  : `media-card media-card-${item.kind}`
+              }
               onClick={() => onSelect(item)}
             >
               {item.path === selectedPath ? <span className="card-state-badge">预览中</span> : null}
