@@ -1026,6 +1026,10 @@ input[type="checkbox"] {
   flex-wrap: wrap;
 }
 
+.restore-action-label {
+  white-space: nowrap;
+}
+
 .restore-hint {
   color: var(--text-soft);
   font-size: 13px;
@@ -1677,6 +1681,23 @@ input[type="range"]::-webkit-slider-thumb {
 
   .theme-toggle-label,
   .topbar-refresh-label {
+    display: none;
+  }
+
+  .mobile-restore-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .mobile-restore-actions .button {
+    width: 100%;
+    min-height: 40px;
+    padding: 0;
+    border-radius: 14px;
+  }
+
+  .mobile-restore-actions .restore-action-label {
     display: none;
   }
 

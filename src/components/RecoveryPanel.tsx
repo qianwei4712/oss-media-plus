@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ExternalLink, Maximize2, Pause, Play, RotateCcw, Trash2, Volume2 } from 'lucide-react';
+import { ExternalLink, Maximize2, Pause, Play, RotateCcw, Snowflake, Trash2, Volume2 } from 'lucide-react';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { deleteObject, restoreObject, restoreRecoveryObject, signObjectUrl } from '../oss';
 import { useAppStore } from '../store';
@@ -276,12 +276,28 @@ export function RecoveryPanel({ item, onRestored, onDeleted }: RecoveryPanelProp
       {needsRestore ? (
         <div className="restore-card">
           <strong>对象存储类型为 {item.storageClass}，需要先解冻后才能访问。</strong>
-          <div className="restore-actions">
-            <button type="button" className="button primary" onClick={() => void submitRestoreSource()} disabled={restoringSource}>
-              {restoringSource ? '解冻中...' : '发起解冻'}
+          <div className={isMobile ? 'restore-actions mobile-restore-actions' : 'restore-actions'}>
+            <button
+              type="button"
+              className="button primary"
+              onClick={() => void submitRestoreSource()}
+              disabled={restoringSource}
+              aria-label={restoringSource ? '解冻中' : '发起解冻'}
+              title={restoringSource ? '解冻中' : '发起解冻'}
+            >
+              <Snowflake size={16} />
+              <span className="restore-action-label">{restoringSource ? '解冻中...' : '发起解冻'}</span>
             </button>
-            <button type="button" className="button secondary" onClick={refreshSignedUrl} disabled={restoringSource}>
-              刷新链接
+            <button
+              type="button"
+              className="button secondary"
+              onClick={refreshSignedUrl}
+              disabled={restoringSource}
+              aria-label="刷新链接"
+              title="刷新链接"
+            >
+              <ExternalLink size={16} />
+              <span className="restore-action-label">刷新链接</span>
             </button>
           </div>
           {restoreHint ? <div className="restore-hint">{restoreHint}</div> : null}
