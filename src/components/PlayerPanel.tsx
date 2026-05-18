@@ -366,26 +366,52 @@ export function PlayerPanel({ item, onMoved, onDeleted }: PlayerPanelProps) {
         </div>
       ) : null}
 
-      <div className={isMobile ? 'player-actions mobile-sticky-actions' : 'player-actions'}>
+      <div className={isMobile ? 'player-actions mobile-sticky-actions mobile-media-actions' : 'player-actions'}>
         {item.kind === 'image' || item.kind === 'video' ? (
           <>
-            <button type="button" className="button secondary" onClick={() => void enterFullscreen()}>
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() => void enterFullscreen()}
+              aria-label="全屏查看"
+              title="全屏查看"
+            >
               <Maximize2 size={16} />
-              全屏查看
+              <span className="player-action-label">全屏查看</span>
             </button>
-            <button type="button" className="button secondary" onClick={openInNewWindow}>
+            <button
+              type="button"
+              className="button secondary"
+              onClick={openInNewWindow}
+              aria-label="新窗口打开"
+              title="新窗口打开"
+            >
               <ExternalLink size={16} />
-              新窗口打开
+              <span className="player-action-label">新窗口打开</span>
             </button>
           </>
         ) : null}
-        <button type="button" className="button secondary" onClick={openMove} disabled={!config || moving}>
+        <button
+          type="button"
+          className="button secondary"
+          onClick={openMove}
+          disabled={!config || moving}
+          aria-label="移动到"
+          title="移动到"
+        >
           <ArrowRightLeft size={16} />
-          移动到...
+          <span className="player-action-label">移动到...</span>
         </button>
-        <button type="button" className="button danger" onClick={() => void submitDelete()} disabled={!config || moving || deleting}>
+        <button
+          type="button"
+          className="button danger"
+          onClick={() => void submitDelete()}
+          disabled={!config || moving || deleting}
+          aria-label={deleting ? '删除中' : '删除到回收站'}
+          title={deleting ? '删除中' : '删除到回收站'}
+        >
           <Trash2 size={16} />
-          {deleting ? '删除中...' : '删除到回收站'}
+          <span className="player-action-label">{deleting ? '删除中...' : '删除到回收站'}</span>
         </button>
       </div>
 

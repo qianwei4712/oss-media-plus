@@ -1098,6 +1098,10 @@ input[type="checkbox"] {
   justify-content: flex-end;
 }
 
+.player-action-label {
+  white-space: nowrap;
+}
+
 .mobile-sticky-actions {
   position: sticky;
   bottom: 0;
@@ -1874,6 +1878,24 @@ input[type="range"]::-webkit-slider-thumb {
   .mobile-sticky-actions .button {
     min-height: 46px;
     justify-content: center;
+  }
+
+  .mobile-media-actions {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 16px;
+    padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+  }
+
+  .mobile-media-actions .button {
+    min-width: 0;
+    min-height: 40px;
+    padding: 0;
+    border-radius: 14px;
+  }
+
+  .mobile-media-actions .player-action-label {
+    display: none;
   }
 
   .mobile-sticky-actions .button.secondary {
